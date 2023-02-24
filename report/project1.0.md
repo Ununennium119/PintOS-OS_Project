@@ -166,12 +166,31 @@ gs             0x23     35
 
 ۱۴.
 
+after calling `load` in `start_process` we add:
+```
+if_.esp -= 20;
+```
 ۱۵.
+
+perl
+do-stack-align: exit(12)
+
 
 ۱۶.
 
+0xbfffff98:     0x00000001      0x000000a2
+
+
 ۱۷.
 
+`print args[0]`= 1
+`print args[1]`= 162
+
+
 ۱۸.
+
+در ابتدای برنامه مقدار آن ۰ است. در init.c ما تابع  process_execute را فراخوانی می‌کنیم که شماره پراسس را به ما برمی‌گرداند و ما آن را به  process_wait می‌دهیم تا تا انتهای آن صبر کند. و حالا تا وقتی که process_exit اجرا نشده باشد مقدار آن به ۱ نمی‌رسد و sema_down اجرا نخواهد شد.
+
+در تابع process_wait کال شده است.
 
 ۱۹.
