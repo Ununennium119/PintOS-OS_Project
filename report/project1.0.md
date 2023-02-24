@@ -101,9 +101,13 @@ pintos-debug: dumplist #1: 0xc0104000 {tid = 2, status = THREAD_BLOCKED, name = 
 
 ```C
 init.c:133: run_actions (argv);
+```
 ***
+```C
 init.c:340: a->function (argv);
+```
 ***
+```
 init.c:288: process_wait (process_execute (task));
 ```
 
