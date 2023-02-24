@@ -5,13 +5,13 @@
 -----
 > نام و آدرس پست الکترونیکی اعضای گروه را در این قسمت بنویسید.
 
-نام و نام خانوادگی <example@example.com>
+محمد مهدی صادقی moh02sadeghi@gmail.com
 
-نام و نام خانوادگی <example@example.com> 
+آرش یادگاری arashyadegari0402@gmail.com
 
-نام و نام خانوادگی <example@example.com> 
+محمد خسروی mohamad138121@gmail.com
 
-نام و نام خانوادگی <example@example.com> 
+عرفان مجیبی mojibierfan@gmail.com
 
 مقدمات
 ----------
@@ -28,8 +28,10 @@
 ## یافتن دستور معیوب
 
 ۱.
+0xc0000008
 
 ۲.
+0x8048757
 
 ۳.
 
