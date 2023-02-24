@@ -186,6 +186,7 @@ do-stack-align: exit(12)
 `print args[0]`= 1
 `print args[1]`= 162
 
+دو مقدار بالای پشته برابر این دو مفدار هستند.
 
 ۱۸.
 
@@ -194,3 +195,9 @@ do-stack-align: exit(12)
 در تابع process_wait کال شده است.
 
 ۱۹.
+
+name = `main`
+
+address = `0xc000e000`
+
+other thread = `idle`
