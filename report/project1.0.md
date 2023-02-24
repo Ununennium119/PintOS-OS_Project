@@ -34,8 +34,43 @@
 0x8048757
 
 ۳.
+command:
+
+```objdump -d  do-nothing```
+
+function name: `_start`
+
+instruction: `mov    0x24(%esp),%eax`
+
+
 
 ۴.
+```C
+void
+_start (int argc, char *argv[])
+{
+  exit (main (argc, argv));
+}
+```
+
+`sub    $0x1c,%esp` : allocate 28 bytes from stack
+
+`mov    0x24(%esp),%eax`: move the value at address [%esp] + 36 to %eax
+
+`mov    %eax,0x4(%esp)`: move %eax to 4 + [%esp]
+
+`mov    0x20(%esp),%eax`:  move the value at address [%esp] + 32 to %eax
+
+`mov    %eax,(%esp)`: move %eax to [%esp]
+
+`call   80480a0 <main>`: call main
+
+`mov    %eax,(%esp)`: move %eax to [%esp]
+
+`call   804a2bc <exit>`: call exit
+
+در واقع پارامترهای تابع را در استک پوش می‌کند و با مقدار خروجی تابع main تابع exit را صدا می‌زند.
+
 
 ۵.
 
