@@ -125,16 +125,38 @@ tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
 ۱۰.
 
 ```
-$1 = {edi = 0x0, esi = 0x0, ebp = 0x0, esp_dummy = 0x0, ebx = 0x0, edx = 0x0, ecx = 0x0, eax = 0x0, gs = 0x23, fs = 0x23, es = 0x23, ds = 0x23, vec_no = 0x0, error_code = 0x0, frame_pointer = 0x0, eip = 0x0,
-cs = 0x1b, eflags = 0x202, esp = 0x0, ss = 0x23}
+$2 = {edi = 0x0, esi = 0x0, ebp = 0x0, esp_dummy = 0x0, ebx = 0x0, edx = 0x0, ecx = 0x0, eax = 0x0, gs = 0x23, fs = 0x23, es = 0x23, ds = 0x23, vec_no = 0x0,
+ error_code = 0x0, frame_pointer = 0x0, eip = 0x8048754, cs = 0x1b, eflags = 0x202, esp = 0xc0000000, ss = 0x23}
 ```
 
 ۱۱.
 
+در این حالت تابع intr_exit اجرا می‌شود که برای خروج از interupt استفاده می‌شود و باید در حالت kernel اجرا شود. 
+اما هدف اصلی از این کار انجام context switch است تا در هنگام برگشتن از حالت kernel به حالت user، وضعیت پردازه‌ی جدید (که در if_ تنظیم شده است) در cpu لود شود.
+
 ۱۲.
-
+```
+eax            0x0      0
+ecx            0x0      0
+edx            0x0      0
+ebx            0x0      0
+esp            0xc0000000       0xc0000000
+ebp            0x0      0x0
+esi            0x0      0
+edi            0x0      0
+eip            0x8048754        0x8048754
+eflags         0x202    [ IF ]
+cs             0x1b     27
+ss             0x23     35
+ds             0x23     35
+es             0x23     35
+fs             0x23     35
+gs             0x23     35
+```
 ۱۳.
-
+```
+#0  _start (argc=<unavailable>, argv=<unavailable>) at ../../lib/user/entry.c:9
+```
 
 ## دیباگ
 
