@@ -30,7 +30,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name)
 {
-  char *fn_copy;
+  void *fn_copy;
   tid_t tid;
 
   sema_init (&temporary, 0);
@@ -39,7 +39,17 @@ process_execute (const char *file_name)
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
+  
+  char *s = palloc_get_page(0);
+  strlcpy(s, file_name, PGSIZE);
+  char *token, *save_ptr;
+  int argc = 0;
+  for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
+    token = strtok_r (NULL, " ", &save_ptr)){
+    argc++;
+    *((char **) fn_copy + argc) = token;
+  } 
+  *(int *) fn_copy = argc;
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
@@ -53,7 +63,7 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  char *file_name = file_name_;
+  char *file_name = *((char **) file_name_ + 1);
   struct intr_frame if_;
   bool success;
 
@@ -66,7 +76,6 @@ start_process (void *file_name_)
   if_.esp -= 0x24;
 
   /* If load failed, quit. */
-  palloc_free_page (file_name);
   if (!success)
     thread_exit ();
 
