@@ -232,7 +232,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* tokenize file_name */
   char *save_ptr;
   char *token;
-  char *argv[PGSIZE / sizeof(char *)];
+  char *argv[MAX_ARGS];
   int argc = 0;
   for (token = strtok_r((char *)file_name, " ", &save_ptr); token != NULL;
        token = strtok_r(NULL, " ", &save_ptr)) {
