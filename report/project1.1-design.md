@@ -72,22 +72,31 @@
 
 ```C
 struct thread_child_status {
-    pid_t pid;
-    int exit_code;
+  pid_t pid;
+  int exit_code;
 
-    int reference_count;
-    struct lock rc_lock;
+  int reference_count;
+  struct lock rc_lock;
 
-    struct semaphore wait_sema;
+  struct semaphore wait_sema;
 
-    struct list_elem elem;
+  struct list_elem elem;
 }
 ```
 
 ```C
 struct thread {
-    ...
-    struct thread_child_status *tc_statuc;
+  ...
+  struct thread_child_status *tc_statuc;
+}
+```
+
+```C
+struct file_descriptor {
+  int file_id;
+  struct file *file;
+
+  struct list_elem elem;
 }
 ```
 
