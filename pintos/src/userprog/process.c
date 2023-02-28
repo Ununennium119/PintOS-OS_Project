@@ -66,7 +66,7 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-  if_.esp -= 0x24;
+  // if_.esp -= 0x24;
 
   /* If load failed, quit. */
   if (!success)
@@ -234,8 +234,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   char *token;
   char *argv[MAX_ARGS];
   int argc = 0;
-  for (token = strtok_r((char *)file_name, " ", &save_ptr); token != NULL;
-       token = strtok_r(NULL, " ", &save_ptr)) {
+  for (token = strtok_r ((char *) file_name, " ", &save_ptr); token != NULL;
+       token = strtok_r (NULL, " ", &save_ptr)) {
         argv[argc] = token;
         argc++;
        }
@@ -324,6 +324,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Set up stack. */
   if (!setup_stack (esp, argc, argv))
     goto done;
+  
+  /* Free page */
+  palloc_free_page((char *) file_name);
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
@@ -457,13 +460,54 @@ setup_stack (void **esp, int argc, char **argv)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE;
+        {
+          *esp = PHYS_BASE;
 
-        /* ToDo: fill stack by following order */
-        // value of arguments
-        // address of arguments
-        // address of first address of arguments
-        // argc
+          /* Push arguments into the stack and save address of them */
+          char *argv_addresses[argc];
+          for (int i = argc - 1; i >= 0; i--)
+            {
+              int arg_length = (strlen(argv[i]) + 1) * sizeof(char);
+              *esp -= arg_length;
+              memcpy (*esp, argv[i], arg_length);
+              argv_addresses[i] = (char *) *esp;
+            }
+          
+          /* Align stack */
+          unsigned int align_size = (unsigned int) *esp % 16;
+          *esp -= align_size;
+          memset (*esp, 0xff, align_size);
+          
+          /* Push NULL into the stack */
+          *esp -= 4;
+          *((void **) *esp) = NULL;
+
+          /* Push address of arguments into the stack */
+          for (int i = argc - 1; i >= 0; i--)
+            {
+              *esp -= 4;
+              *((char **) *esp) = argv_addresses[i];
+            }
+          int first_arg_address = (int) *esp;
+          
+          /* Align stack */
+          align_size = ((unsigned int) *esp % 16) + 8;
+          *esp -= align_size;
+          memset (*esp, 0xff, align_size);
+          
+          /* Push address of first argument's address into the stack */
+          *esp -= 4;
+          *((int *) (*esp)) = first_arg_address;
+
+          /* Push argc into the stack */
+          *esp -= 4;
+          *((int *) (*esp)) = argc;
+
+          /* Push 0 (because there is no return address) */
+          *esp -= 4;
+          *((int *) (*esp)) = 0;
+        }
+
       else
         palloc_free_page (kpage);
     }
