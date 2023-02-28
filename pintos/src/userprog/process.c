@@ -30,7 +30,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name)
 {
-  char *fn_copy;
+  void *fn_copy;
   tid_t tid;
 
   sema_init (&temporary, 0);
@@ -38,11 +38,14 @@ process_execute (const char *file_name)
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
-    return TID_ERROR;
+    return TID_ERROR;;
   strlcpy (fn_copy, file_name, PGSIZE);
+  
+  char *save_ptr;
+  char *program_name = strtok_r ((char *) file_name, " ", &save_ptr);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (program_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   return tid;
@@ -66,7 +69,6 @@ start_process (void *file_name_)
   if_.esp -= 0x24;
 
   /* If load failed, quit. */
-  palloc_free_page (file_name);
   if (!success)
     thread_exit ();
 
@@ -201,7 +203,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, int argc, char **argv);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -227,11 +229,23 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+  /* tokenize file_name */
+  char *save_ptr;
+  char *token;
+  char *argv[MAX_ARGS];
+  int argc = 0;
+  for (token = strtok_r((char *)file_name, " ", &save_ptr); token != NULL;
+       token = strtok_r(NULL, " ", &save_ptr)) {
+        argv[argc] = token;
+        argc++;
+       }
+  char *program_name = argv[0];
+
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (program_name);
   if (file == NULL)
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", program_name);
       goto done;
     }
 
@@ -244,7 +258,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
       || ehdr.e_phnum > 1024)
     {
-      printf ("load: %s: error loading executable\n", file_name);
+      printf ("load: %s: error loading executable\n", program_name);
       goto done;
     }
 
@@ -308,7 +322,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, argc, argv))
     goto done;
 
   /* Start address. */
@@ -433,7 +447,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp)
+setup_stack (void **esp, int argc, char **argv)
 {
   uint8_t *kpage;
   bool success = false;
@@ -444,6 +458,12 @@ setup_stack (void **esp)
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
         *esp = PHYS_BASE;
+
+        /* ToDo: fill stack by following order */
+        // value of arguments
+        // address of arguments
+        // address of first address of arguments
+        // argc
       else
         palloc_free_page (kpage);
     }
