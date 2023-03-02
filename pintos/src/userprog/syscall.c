@@ -38,46 +38,46 @@ syscall_handler (struct intr_frame *f)
   switch (syscall_number)
     {
       case SYS_HALT:
-        halt_syscall();
+        halt_syscall ();
         break;
       case SYS_EXIT:
-        exit_syscall(f, (int) args[1]);
+        exit_syscall (f, (int) args[1]);
         break;
       case SYS_EXEC:
-        exec_syscall(f, (const char *) args[1]);
+        exec_syscall (f, (const char *) args[1]);
         break;
       case SYS_WAIT:
-        wait_syscall(f, args[1]);
+        wait_syscall (f, args[1]);
         break;
       case SYS_CREATE:
-        create_syscall(f, (const char *) args[1], args[2]);
+        create_syscall (f, (const char *) args[1], args[2]);
         break;
       case SYS_REMOVE:
-        remove_syscall(f, (const char *) args[1]);
+        remove_syscall (f, (const char *) args[1]);
         break;
       case SYS_OPEN:
-        open_syscall(f, (const char *) args[1]);
+        open_syscall (f, (const char *) args[1]);
         break;
       case SYS_FILESIZE:
-        exit_syscall(f, args[1]);
+        exit_syscall (f, args[1]);
         break;
       case SYS_READ:
-        read_syscall(f, args[1], (void *) args[2], args[3]);
+        read_syscall (f, args[1], (void *) args[2], args[3]);
         break;
       case SYS_WRITE:
-        write_syscall(f, args[1], (void *) args[2], args[3]);
+        write_syscall (f, args[1], (void *) args[2], args[3]);
         break;
       case SYS_SEEK:
-        seek_syscall(f, args[1], args[2]);
+        seek_syscall (f, args[1], args[2]);
         break;
       case SYS_TELL:
-        tell_syscall(f, args[1]);
+        tell_syscall (f, args[1]);
         break;
       case SYS_CLOSE:
-        close_syscall(f, args[1]);
+        close_syscall (f, args[1]);
         break;
       case SYS_PRACTICE:
-        practice_syscall(f, args[1]);
+        practice_syscall (f, args[1]);
         break;
     }
 }
@@ -87,7 +87,7 @@ syscall_handler (struct intr_frame *f)
 void
 halt_syscall (void)
 {
-  // ToDo: Implement
+  shutdown_power_off ();
 }
 
 void
@@ -149,7 +149,7 @@ write_syscall (struct intr_frame *f, int fd, void *buffer, unsigned size)
   int result = -1;
   if (fd == STDOUT_FILENO)
     {
-      putbuf(buffer, size);
+      putbuf (buffer, size);
       result = size;
     }
   
