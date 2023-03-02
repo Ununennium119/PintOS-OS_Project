@@ -86,6 +86,8 @@ syscall_handler (struct intr_frame *f)
       case SYS_PRACTICE:
         practice_syscall (f, args[1]);
         break;
+      default:
+        exit_syscall(f, -1);
     }
 }
 
