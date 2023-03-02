@@ -6,7 +6,21 @@
 
 static void syscall_handler (struct intr_frame *);
 
-int write_syscall (int fd, void *buffer, unsigned size);
+void halt_syscall (void);
+void exit_syscall (struct intr_frame *f, int status);
+void exec_syscall (struct intr_frame *f, const char *file);
+void wait_syscall (struct intr_frame *f, tid_t tid);
+void create_syscall (struct intr_frame *f, const char *file, unsigned initial_size);
+void remove_syscall (struct intr_frame *f, const char *file);
+void open_syscall (struct intr_frame *f, const char *file);
+void filesize_syscall (struct intr_frame *f, int fd);
+void read_syscall (struct intr_frame *f, int fd, void *buffer, unsigned size);
+void write_syscall (struct intr_frame *f, int fd, void *buffer, unsigned size);
+void seek_syscall (struct intr_frame *f, int fd, unsigned position);
+void tell_syscall (struct intr_frame *f, int fd);
+void close_syscall (struct intr_frame *f, int fd);
+void practice_syscall (struct intr_frame *f, int i);
+
 
 void
 syscall_init (void)
@@ -15,50 +29,154 @@ syscall_init (void)
 }
 
 
-
 static void
-syscall_handler (struct intr_frame *f UNUSED)
+syscall_handler (struct intr_frame *f)
 {
-  uint32_t* args = ((uint32_t*) f->esp);
+  uint32_t *args = ((uint32_t*) f->esp);
+  uint32_t syscall_number = args[0];
 
-  /*
-   * The following print statement, if uncommented, will print out the syscall
-   * number whenever a process enters a system call. You might find it useful
-   * when debugging. It will cause tests to fail, however, so you should not
-   * include it in your final submission.
-   */
-
-  /* printf("System call number: %d\n", args[0]); */
-
-  if (args[0] == SYS_EXIT)
+  switch (syscall_number)
     {
-      f->eax = args[1];
-      printf ("%s: exit(%d)\n", &thread_current ()->name, args[1]);
-      thread_exit ();
-    }
-  else if (args[0] == SYS_WRITE)
-    {
-      int fd = (int) args[1];
-      void *buffer = (void *) args[2];
-      unsigned size = (unsigned) args[3];
-
-      int result = write_syscall (fd, buffer, size);
-      f->eax = result;
-    }
-  else if (args[0] == SYS_PRACTICE)
-    {
-      f->eax = args[1] + 1;
+      case SYS_HALT:
+        halt_syscall();
+        break;
+      case SYS_EXIT:
+        exit_syscall(f, (int) args[1]);
+        break;
+      case SYS_EXEC:
+        exec_syscall(f, (const char *) args[1]);
+        break;
+      case SYS_WAIT:
+        wait_syscall(f, args[1]);
+        break;
+      case SYS_CREATE:
+        create_syscall(f, (const char *) args[1], args[2]);
+        break;
+      case SYS_REMOVE:
+        remove_syscall(f, (const char *) args[1]);
+        break;
+      case SYS_OPEN:
+        open_syscall(f, (const char *) args[1]);
+        break;
+      case SYS_FILESIZE:
+        exit_syscall(f, args[1]);
+        break;
+      case SYS_READ:
+        read_syscall(f, args[1], (void *) args[2], args[3]);
+        break;
+      case SYS_WRITE:
+        write_syscall(f, args[1], (void *) args[2], args[3]);
+        break;
+      case SYS_SEEK:
+        seek_syscall(f, args[1], args[2]);
+        break;
+      case SYS_TELL:
+        tell_syscall(f, args[1]);
+        break;
+      case SYS_CLOSE:
+        close_syscall(f, args[1]);
+        break;
+      case SYS_PRACTICE:
+        practice_syscall(f, args[1]);
+        break;
     }
 }
 
-int
-write_syscall (int fd, void *buffer, unsigned size)
+
+/* Process Control Syscalls */
+void
+halt_syscall (void)
 {
+  // ToDo: Implement
+}
+
+void
+exit_syscall (struct intr_frame *f, int status)
+{
+  f->eax = status;
+  printf ("%s: exit(%d)\n", thread_current ()->name, status);
+  thread_exit ();
+}
+
+void
+exec_syscall (struct intr_frame *f UNUSED, const char *file UNUSED)
+{
+  // ToDo: Implement
+}
+
+void
+wait_syscall (struct intr_frame *f UNUSED, tid_t tid UNUSED)
+{
+    // ToDo: Implement
+}
+
+/* File Operation Syscalls */
+void
+create_syscall (struct intr_frame *f UNUSED, const char *file UNUSED, unsigned initial_size UNUSED)
+{
+    // ToDo: Implement
+}
+
+void
+remove_syscall (struct intr_frame *f UNUSED, const char *file UNUSED)
+{
+    // ToDo: Implement
+}
+
+void
+open_syscall (struct intr_frame *f UNUSED, const char *file UNUSED)
+{
+    // ToDo: Implement
+}
+
+void
+filesize_syscall (struct intr_frame *f UNUSED, int fd UNUSED)
+{
+    // ToDo: Implement
+}
+
+void
+read_syscall (struct intr_frame *f UNUSED, int fd UNUSED, void *buffer UNUSED, unsigned size UNUSED)
+{
+    // ToDo: Implement
+}
+
+void
+write_syscall (struct intr_frame *f, int fd, void *buffer, unsigned size)
+{
+  /* ToDo: Complete */
+
+  int result = -1;
   if (fd == STDOUT_FILENO)
     {
       putbuf(buffer, size);
-      return size;
+      result = size;
     }
   
-  return -1;
+  f->eax = result;
+}
+
+void
+seek_syscall (struct intr_frame *f UNUSED, int fd UNUSED, unsigned position UNUSED)
+{
+    // ToDo: Implement
+}
+
+void
+tell_syscall (struct intr_frame *f UNUSED, int fd UNUSED)
+{
+    // ToDo: Implement
+}
+
+void
+close_syscall (struct intr_frame *f UNUSED, int fd UNUSED)
+{
+    // ToDo: Implement
+}
+
+/* Other Syscalls */
+void
+practice_syscall (struct intr_frame *f, int i)
+{
+  f->eax = i + 1;
 }

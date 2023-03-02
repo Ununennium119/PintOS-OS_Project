@@ -192,7 +192,7 @@ inumber (int fd)
 }
 
 void*
-sbrk (intptr_t increment)
+sbrk (intptr_t increment UNUSED)
 {
   /* Homework 5, Part B: YOUR CODE HERE */
   return NULL;
