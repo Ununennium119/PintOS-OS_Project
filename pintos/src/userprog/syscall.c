@@ -3,8 +3,13 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+#include "devices/shutdown.h"
+#include "pagedir.h"
 
 static void syscall_handler (struct intr_frame *);
+
+bool is_address_valid (const void *address);
 
 void halt_syscall (void);
 void exit_syscall (struct intr_frame *f, int status);
@@ -33,8 +38,10 @@ static void
 syscall_handler (struct intr_frame *f)
 {
   uint32_t *args = ((uint32_t*) f->esp);
-  uint32_t syscall_number = args[0];
+  if (!is_address_valid(args))
+    exit_syscall(f, -1);
 
+  uint32_t syscall_number = args[0];
   switch (syscall_number)
     {
       case SYS_HALT:
@@ -80,6 +87,22 @@ syscall_handler (struct intr_frame *f)
         practice_syscall (f, args[1]);
         break;
     }
+}
+
+
+bool
+is_address_valid (const void *address)
+{
+  if (address == NULL || !is_user_vaddr (address))
+    return false;
+  
+#ifdef USERPROG
+  uint32_t *pagedir = thread_current()->pagedir;
+  if (pagedir_get_page(pagedir, address) == NULL)
+    return false;
+#endif
+  
+  return true;
 }
 
 
