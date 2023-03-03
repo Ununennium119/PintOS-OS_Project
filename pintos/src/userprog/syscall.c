@@ -1,15 +1,20 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
+#include <string.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-#include "devices/shutdown.h"
+#include "process.h"
 #include "pagedir.h"
+#include "devices/shutdown.h"
 
 static void syscall_handler (struct intr_frame *);
 
+bool is_string_valid (const char *string);
 bool is_address_valid (const void *address);
+
+unsigned get_argc(uint32_t syscall_number);
 
 void halt_syscall (void);
 void exit_syscall (struct intr_frame *f, int status);
@@ -38,10 +43,27 @@ static void
 syscall_handler (struct intr_frame *f)
 {
   uint32_t *args = ((uint32_t*) f->esp);
-  if (!is_address_valid(args))
-    exit_syscall(f, -1);
 
+  /* validate syscall number address */
+  if (!is_address_valid (args))
+    {
+      exit_syscall (f, -1);
+      return;
+    }
   uint32_t syscall_number = args[0];
+
+  /* validate arguments addresses */
+  unsigned argc = get_argc (syscall_number);
+  for (unsigned i = 1; i <= argc; i++)
+    {
+      if (!is_address_valid (args + i))
+        {
+          exit_syscall (f, -1);
+          return;
+        }
+    }
+
+  /* run syscall function */
   switch (syscall_number)
     {
       case SYS_HALT:
@@ -87,11 +109,13 @@ syscall_handler (struct intr_frame *f)
         practice_syscall (f, args[1]);
         break;
       default:
-        exit_syscall(f, -1);
+        exit_syscall (f, -1);
     }
 }
 
 
+/* Checks validity of the given address. An address is valid if it is
+   a user virtual address and is in a current thread's pages */
 bool
 is_address_valid (const void *address)
 {
@@ -107,6 +131,47 @@ is_address_valid (const void *address)
   return true;
 }
 
+bool
+is_string_valid (const char *string)
+{
+#ifdef USERPROG
+  uint32_t *pagedir = thread_current ()->pagedir;
+  char *kernel_virtual_address = pagedir_get_page (pagedir, string);
+  if (kernel_virtual_address == NULL)
+    return false;
+  return is_address_valid(string + strlen (kernel_virtual_address) + 1);
+#else
+  return true;
+#endif
+}
+
+
+unsigned
+get_argc(uint32_t syscall_number)
+{
+  switch (syscall_number)
+    {
+      case SYS_EXIT:
+      case SYS_EXEC:
+      case SYS_WAIT:
+      case SYS_REMOVE:
+      case SYS_OPEN:
+      case SYS_FILESIZE:
+      case SYS_TELL:
+      case SYS_CLOSE:
+      case SYS_PRACTICE:
+        return 1;
+      case SYS_CREATE:
+      case SYS_SEEK:
+        return 2;
+      case SYS_READ:
+      case SYS_WRITE:
+        return 3;
+      default:
+        return 0;
+    }
+}
+
 
 /* Process Control Syscalls */
 void
@@ -119,20 +184,27 @@ void
 exit_syscall (struct intr_frame *f, int status)
 {
   f->eax = status;
+  thread_current ()->thread_details->exit_code = status;
   printf ("%s: exit(%d)\n", thread_current ()->name, status);
   thread_exit ();
 }
 
 void
-exec_syscall (struct intr_frame *f UNUSED, const char *file UNUSED)
+exec_syscall (struct intr_frame *f, const char *file)
 {
-  // ToDo: Implement
+  if (!is_string_valid(file))
+    {
+      exit_syscall(f, -1);
+      return;
+    }
+
+  f->eax = process_execute (file);
 }
 
 void
-wait_syscall (struct intr_frame *f UNUSED, tid_t tid UNUSED)
+wait_syscall (struct intr_frame *f, tid_t tid)
 {
-    // ToDo: Implement
+    f->eax = process_wait (tid);
 }
 
 /* File Operation Syscalls */

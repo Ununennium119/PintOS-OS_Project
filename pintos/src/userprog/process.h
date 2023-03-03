@@ -5,6 +5,13 @@
 
 #define MAX_ARGS 30
 
+struct thread_args
+	{
+		struct thread_details *thread_details;
+		void *command;
+		struct dir *cwd;
+	};
+
 tid_t process_execute (const char *file_name);
 int process_wait (tid_t);
 void process_exit (void);

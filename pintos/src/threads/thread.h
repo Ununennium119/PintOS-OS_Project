@@ -100,9 +100,28 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
 #endif
 
+		struct dir *cwd;
+		struct file *executable;
+		struct thread_details *thread_details;
+		struct list children_details;
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
+struct thread_details
+  {
+    tid_t tid;
+    int exit_code;
+
+    int reference_count;
+    struct lock rc_lock;
+
+		bool is_being_waited;
+    struct semaphore wait_sema;
+
+    struct list_elem elem;
+   };
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

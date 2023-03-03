@@ -19,7 +19,6 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
-static struct semaphore temporary;
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -28,49 +27,87 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
    before process_execute() returns.  Returns the new process's
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
-process_execute (const char *file_name)
+process_execute (const char *command)
 {
-  void *fn_copy;
   tid_t tid;
 
-  sema_init (&temporary, 0);
-  /* Make a copy of FILE_NAME.
-     Otherwise there's a race between the caller and load(). */
-  fn_copy = palloc_get_page (0);
-  if (fn_copy == NULL)
-    return TID_ERROR;;
-  strlcpy (fn_copy, file_name, PGSIZE);
-  
-  char *save_ptr;
-  char *program_name = strtok_r ((char *) file_name, " ", &save_ptr);
+  /* Create and initialize thread_details. */
+  struct thread_details *thread_details = (struct thread_details *) palloc_get_page (0);
+  thread_details->reference_count = 2;
+  lock_init (&thread_details->rc_lock);
+  thread_details->is_being_waited = false;
+  sema_init (&thread_details->wait_sema, 0);
 
-  /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (program_name, PRI_DEFAULT, start_process, fn_copy);
+  /* Create and initialize thread_args. */
+  struct thread_args *thread_args = (struct thread_args *) palloc_get_page (0);
+  thread_args->thread_details = thread_details;
+
+  /* Set current working directory */
+  struct thread *parent_thread = thread_current ();
+  thread_args->cwd = parent_thread->cwd;
+
+  /* Make a copy of COMMAND.
+     Otherwise there's a race between the caller and load(). */
+  thread_args->command = palloc_get_page (0);
+  if (thread_args->command == NULL)
+    {
+      palloc_free_page(thread_details);
+      palloc_free_page(thread_args);
+      return TID_ERROR;
+    }
+  strlcpy (thread_args->command, command, PGSIZE);
+
+  /* Create a new thread to execute COMMAND. */
+  tid = thread_create (command, PRI_DEFAULT, start_process, thread_args);
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy);
+    {
+      palloc_free_page (thread_details);
+      palloc_free_page (thread_args->command);
+      palloc_free_page (thread_args);
+      return TID_ERROR;
+    }
+
+  /* Add child thread details to parent's children list. */
+  list_push_front (&parent_thread->children_details, &thread_details->elem);
+  
+  /* Wait for new thread to start. */
+  sema_down (&thread_details->wait_sema);
+
   return tid;
 }
 
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *file_name_)
+start_process (void *thread_args_void)
 {
-  char *file_name = file_name_;
+  struct thread_args *thread_args = (struct thread_args *) thread_args_void;
   struct intr_frame if_;
   bool success;
+
+  /* Update child thread fields */
+  struct thread *child_thread = thread_current ();
+  child_thread->thread_details = thread_args->thread_details;
+  child_thread->thread_details->tid = child_thread->tid;
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
-  // if_.esp -= 0x24;
+  success = load (thread_args->command, &if_.eip, &if_.esp);
+
+  palloc_free_page (thread_args);
 
   /* If load failed, quit. */
   if (!success)
-    thread_exit ();
+    {
+      child_thread->thread_details->exit_code = -1;
+      sema_up (&child_thread->thread_details->wait_sema);
+      thread_exit ();
+    }
+  
+  sema_up (&child_thread->thread_details->wait_sema);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -92,10 +129,38 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED)
+process_wait (tid_t child_tid)
 {
-  sema_down (&temporary);
-  return 0;
+  /* Find child details. */
+  struct thread *cur = thread_current ();
+  struct thread_details *child_details = NULL;
+  for (struct list_elem *e = list_begin (&cur->children_details);
+       e != list_end (&cur->children_details);
+       e = list_next (e))
+    {
+      struct thread_details *thread_details = list_entry (e, struct thread_details, elem);
+      if (thread_details->tid == child_tid)
+        {
+          child_details = thread_details;
+          break;
+        }
+    }
+  
+  /* Return -1 if no child. */
+  if (child_details == NULL)
+    return -1;
+  
+  /* Return -1 if child is being waited */
+  if (child_details->is_being_waited)
+    return -1;
+  
+  /* Wait for the child. */
+  sema_down (&child_details->wait_sema);
+
+  /* Remove child from the children list. */
+  list_remove (&child_details->elem);
+
+  return child_details->exit_code;
 }
 
 /* Free the current process's resources. */
@@ -104,6 +169,32 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+
+  sema_up (&cur->thread_details->wait_sema);
+
+  /* Free thread details if it is unreferenced. */
+  lock_acquire (&cur->thread_details->rc_lock);
+  cur->thread_details->reference_count--;
+  lock_release (&cur->thread_details->rc_lock);
+  if (cur->thread_details->reference_count == 0)
+    palloc_free_page (cur->thread_details);
+  
+  /* Free unreferenced children details. */
+  for (struct list_elem *e = list_begin (&cur->children_details);
+       e != list_end (&cur->children_details);
+       e = list_next (e))
+    {
+      struct thread_details *child_details = list_entry (e, struct thread_details, elem);
+
+      lock_acquire (&child_details->rc_lock);
+      child_details->reference_count--;
+      lock_release (&child_details->rc_lock);
+      if (child_details->reference_count == 0)
+        {
+          e = list_remove (&child_details->elem)->prev;
+          palloc_free_page (child_details);
+        }
+    }
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -121,7 +212,6 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-  sema_up (&temporary);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -240,6 +330,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
         argc++;
        }
   char *program_name = argv[0];
+
+  /* Rename thread */
+  strlcpy(t->name, program_name, strlen(program_name) + 1);
 
   /* Open executable file. */
   file = filesys_open (program_name);
