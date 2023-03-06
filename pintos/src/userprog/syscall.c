@@ -16,7 +16,7 @@ static void syscall_handler (struct intr_frame *);
 bool is_string_valid (const char *string);
 bool is_address_valid (const void *address);
 
-unsigned get_argc(uint32_t syscall_number);
+unsigned get_argc(int syscall_number);
 
 void halt_syscall (void);
 void exit_syscall (struct intr_frame *f, int status);
@@ -45,25 +45,22 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f)
 {
+  if (f == NULL)
+    exit_syscall (f, -1);
+  
   uint32_t *args = ((uint32_t*) f->esp);
 
   /* validate syscall number address */
-  if (!is_address_valid (args))
-    {
-      exit_syscall (f, -1);
-      return;
-    }
-  uint32_t syscall_number = args[0];
+  if (!is_address_valid (args) || !is_address_valid (args + 1))
+    exit_syscall (f, -1);
+  int syscall_number = (int) args[0];
 
   /* validate arguments addresses */
   unsigned argc = get_argc (syscall_number);
-  for (unsigned i = 1; i <= argc; i++)
+  for (unsigned i = 1; i <= argc + 1; i++)
     {
       if (!is_address_valid (args + i))
-        {
-          exit_syscall (f, -1);
-          return;
-        }
+        exit_syscall (f, -1);
     }
 
   /* run syscall function */
@@ -127,7 +124,7 @@ is_address_valid (const void *address)
   
 #ifdef USERPROG
   uint32_t *pagedir = thread_current()->pagedir;
-  if (pagedir_get_page(pagedir, address) == NULL)
+  if (pagedir == NULL || pagedir_get_page (pagedir, address) == NULL)
     return false;
 #endif
   
@@ -137,20 +134,23 @@ is_address_valid (const void *address)
 bool
 is_string_valid (const char *string)
 {
+  if (!is_address_valid (string))
+    return false;
+  
 #ifdef USERPROG
   uint32_t *pagedir = thread_current ()->pagedir;
   char *kernel_virtual_address = pagedir_get_page (pagedir, string);
   if (kernel_virtual_address == NULL)
     return false;
   return is_address_valid(string + strlen (kernel_virtual_address) + 1);
-#else
-  return true;
 #endif
+
+  return true;
 }
 
 
 unsigned
-get_argc(uint32_t syscall_number)
+get_argc(int syscall_number)
 {
   switch (syscall_number)
     {
@@ -195,11 +195,8 @@ exit_syscall (struct intr_frame *f, int status)
 void
 exec_syscall (struct intr_frame *f, const char *file)
 {
-  if (!is_address_valid(file))
-    {
-      exit_syscall(f, -1);
-      return;
-    }
+  if (!is_string_valid(file))
+    exit_syscall(f, -1);
 
   f->eax = process_execute (file);
 }
@@ -215,14 +212,10 @@ void
 create_syscall (struct intr_frame *f UNUSED, const char *file UNUSED, unsigned initial_size UNUSED)
 {
   if (!is_address_valid(file))
-    {
-      exit_syscall(f, -1);
-      return;
-    }
+    exit_syscall(f, -1);
+  
   if(strlen(file) > 14)
-    {
-      f->eax = false;
-    }
+    f->eax = false;
   else
     {
       lock_acquire(&filesys_lock);
@@ -237,7 +230,7 @@ remove_syscall (struct intr_frame *f UNUSED, const char *file UNUSED)
   if(is_address_valid(file))
     {
       exit_syscall(f, -1);
-    }
+  
   lock_acquire(&filesys_lock);
   f->eax = filesys_remove(file);
   lock_release(&filesys_lock);

@@ -10,6 +10,7 @@ struct thread_args
 		struct thread_details *thread_details;
 		void *command;
 		struct dir *cwd;
+		bool success;
 	};
 
 tid_t process_execute (const char *file_name);
