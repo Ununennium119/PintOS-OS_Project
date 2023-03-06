@@ -25,7 +25,7 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
-
+#define MAX_FILE_DESCRIPTOR 128
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -82,6 +82,7 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
+
 struct thread
   {
     /* Owned by thread.c. */
@@ -105,6 +106,7 @@ struct thread
 		struct thread_details *thread_details;
 		struct list children_details;
 
+    struct file_descriptor *fd[MAX_FILE_DESCRIPTOR];
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
@@ -124,6 +126,11 @@ struct thread_details
 
     struct list_elem elem;
    };
+
+struct file_descriptor {
+  int file_id;
+  struct file *file;
+}
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

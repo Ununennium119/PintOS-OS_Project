@@ -234,7 +234,7 @@ create_syscall (struct intr_frame *f UNUSED, const char *file UNUSED, unsigned i
 void
 remove_syscall (struct intr_frame *f UNUSED, const char *file UNUSED)
 {
-  if(is_address_valid(f))
+  if(is_address_valid(file))
     {
       exit_syscall(f, -1);
     }
