@@ -8,6 +8,7 @@
 #include "process.h"
 #include "pagedir.h"
 #include "devices/shutdown.h"
+#include "filesys/filesys.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -211,7 +212,17 @@ wait_syscall (struct intr_frame *f, tid_t tid)
 void
 create_syscall (struct intr_frame *f UNUSED, const char *file UNUSED, unsigned initial_size UNUSED)
 {
-    // ToDo: Implement
+  if (!is_string_valid(file) && !is_address_valid(file))
+    {
+      exit_syscall(f, -1);
+      return;
+    }
+  if(strlen(file) > 14)
+    {
+      f->eax = false;
+    }
+  else
+    f->eax = filesys_create (file, initial_size);
 }
 
 void
