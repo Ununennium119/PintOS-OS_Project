@@ -4,6 +4,7 @@
         "syscall.h": "c",
         "process.h": "c",
         "vaddr.h": "c",
-        "file.h": "c"
+        "file.h": "c",
+        "synch.h": "c"
     }
 }

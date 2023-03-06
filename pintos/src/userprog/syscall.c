@@ -9,6 +9,7 @@
 #include "pagedir.h"
 #include "devices/shutdown.h"
 #include "filesys/filesys.h"
+#include "threads/synch.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -31,12 +32,13 @@ void seek_syscall (struct intr_frame *f, int fd, unsigned position);
 void tell_syscall (struct intr_frame *f, int fd);
 void close_syscall (struct intr_frame *f, int fd);
 void practice_syscall (struct intr_frame *f, int i);
-
+struct lock filesys_lock;
 
 void
 syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  lock_init(&filesys_lock);
 }
 
 
@@ -212,7 +214,7 @@ wait_syscall (struct intr_frame *f, tid_t tid)
 void
 create_syscall (struct intr_frame *f UNUSED, const char *file UNUSED, unsigned initial_size UNUSED)
 {
-  if (!is_string_valid(file) && !is_address_valid(file))
+  if (!is_address_valid(file))
     {
       exit_syscall(f, -1);
       return;
@@ -222,13 +224,23 @@ create_syscall (struct intr_frame *f UNUSED, const char *file UNUSED, unsigned i
       f->eax = false;
     }
   else
-    f->eax = filesys_create (file, initial_size);
+    {
+      lock_acquire(&filesys_lock);
+      f->eax = filesys_create (file, initial_size);
+      lock_release(&filesys_lock);
+    }
 }
 
 void
 remove_syscall (struct intr_frame *f UNUSED, const char *file UNUSED)
 {
-    // ToDo: Implement
+  if(is_address_valid(f))
+    {
+      exit_syscall(f, -1);
+    }
+  lock_acquire(&filesys_lock);
+  f->eax = filesys_remove(file);
+  lock_release(&filesys_lock);
 }
 
 void
