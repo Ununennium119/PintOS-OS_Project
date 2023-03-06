@@ -228,7 +228,6 @@ void
 remove_syscall (struct intr_frame *f UNUSED, const char *file UNUSED)
 {
   if(is_address_valid(file))
-    {
       exit_syscall(f, -1);
   
   lock_acquire(&filesys_lock);
@@ -239,7 +238,21 @@ remove_syscall (struct intr_frame *f UNUSED, const char *file UNUSED)
 void
 open_syscall (struct intr_frame *f UNUSED, const char *file UNUSED)
 {
-    // ToDo: Implement
+    if(!is_string_valid (file))
+      {
+        exit_syscall(f, -1);
+      }
+
+    lock_acquire (&filesys_lock);
+    struct file* file_ = filesys_open (file);
+    lock_release (&filesys_lock);
+    if (file_ == NULL)
+      f->eax = -1;
+    else
+      {
+        int fd = create_fd(file_);
+        f->eax = fd;
+      }
 }
 
 void

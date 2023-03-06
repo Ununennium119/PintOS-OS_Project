@@ -25,7 +25,7 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
-#define MAX_FILE_DESCRIPTOR 128
+#define MAX_FILE_DESCRIPTOR 32
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -128,7 +128,7 @@ struct thread_details
 struct file_descriptor {
   int file_id;
   struct file *file;
-}
+};
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -165,5 +165,6 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-
+int create_fd(struct file*);
+void init_file_descriptors(struct thread*);
 #endif /* threads/thread.h */
