@@ -195,7 +195,7 @@ exit_syscall (struct intr_frame *f, int status)
 void
 exec_syscall (struct intr_frame *f, const char *file)
 {
-  if (!is_string_valid(file))
+  if (!is_address_valid(file))
     {
       exit_syscall(f, -1);
       return;
