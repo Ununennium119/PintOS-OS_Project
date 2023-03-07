@@ -134,15 +134,18 @@ is_address_valid (const void *address)
 bool
 is_string_valid (const char *string)
 {
+  if (!is_address_valid (string))
+    return false;
+  
 #ifdef USERPROG
   uint32_t *pagedir = thread_current ()->pagedir;
   char *kernel_virtual_address = pagedir_get_page (pagedir, string);
   if (kernel_virtual_address == NULL)
     return false;
   return is_address_valid(string + strlen (kernel_virtual_address) + 1);
-#else
-  return true;
 #endif
+
+  return true;
 }
 
 
@@ -192,7 +195,7 @@ exit_syscall (struct intr_frame *f, int status)
 void
 exec_syscall (struct intr_frame *f, const char *file)
 {
-  if (!is_address_valid(file))
+  if (!is_string_valid(file))
     exit_syscall(f, -1);
 
   f->eax = process_execute (file);
