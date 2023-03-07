@@ -149,6 +149,13 @@ is_string_valid (const char *string)
 }
 
 
+struct file * 
+get_file_by_fd(int fd) 
+{
+  struct thread *t = thread_current ();
+  return t->fd[fd]->file;
+}
+
 unsigned
 get_argc(int syscall_number)
 {
@@ -264,7 +271,33 @@ filesize_syscall (struct intr_frame *f UNUSED, int fd UNUSED)
 void
 read_syscall (struct intr_frame *f UNUSED, int fd UNUSED, void *buffer UNUSED, unsigned size UNUSED)
 {
-    // ToDo: Implement
+    // TODO check inputs
+    int read_bytes_conut = 0;
+    if (fd == STDIN_FILENO) 
+    {
+      for (int i = 0; i < size; i++) 
+      {
+        ((char *) buffer) [i]= input_getc();
+        read_bytes_conut++;
+      }
+    } 
+    else if (fd == STDOUT_FILENO) 
+    {
+      exit_syscall(f, -1);
+    }
+    else 
+    {
+      struct file *file = get_file_by_fd(fd);
+      if (file)
+      {
+        read_bytes_conut = file_read (file, buffer, size);
+      }
+      else 
+      {
+        exit_syscall(f, -1);
+      }
+    }
+  f->eax = read_bytes_conut;
 }
 
 void
