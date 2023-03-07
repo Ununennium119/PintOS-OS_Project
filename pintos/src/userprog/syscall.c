@@ -46,19 +46,13 @@ static void
 syscall_handler (struct intr_frame *f)
 {
   if (f == NULL)
-    {
-      exit_syscall (f, -1);
-      return;
-    }
+    exit_syscall (f, -1);
   
   uint32_t *args = ((uint32_t*) f->esp);
 
   /* validate syscall number address */
   if (!is_address_valid (args) || !is_address_valid (args + 1))
-    {
-      exit_syscall (f, -1);
-      return;
-    }
+    exit_syscall (f, -1);
   int syscall_number = (int) args[0];
 
   /* validate arguments addresses */
@@ -66,10 +60,7 @@ syscall_handler (struct intr_frame *f)
   for (unsigned i = 1; i <= argc + 1; i++)
     {
       if (!is_address_valid (args + i))
-        {
-          exit_syscall (f, -1);
-          return;
-        }
+        exit_syscall (f, -1);
     }
 
   /* run syscall function */
@@ -133,7 +124,7 @@ is_address_valid (const void *address)
   
 #ifdef USERPROG
   uint32_t *pagedir = thread_current()->pagedir;
-  if (pagedir_get_page(pagedir, address) == NULL)
+  if (pagedir == NULL || pagedir_get_page (pagedir, address) == NULL)
     return false;
 #endif
   
@@ -202,10 +193,7 @@ void
 exec_syscall (struct intr_frame *f, const char *file)
 {
   if (!is_address_valid(file))
-    {
-      exit_syscall(f, -1);
-      return;
-    }
+    exit_syscall(f, -1);
 
   f->eax = process_execute (file);
 }
@@ -221,14 +209,10 @@ void
 create_syscall (struct intr_frame *f UNUSED, const char *file UNUSED, unsigned initial_size UNUSED)
 {
   if (!is_address_valid(file))
-    {
-      exit_syscall(f, -1);
-      return;
-    }
+    exit_syscall(f, -1);
+  
   if(strlen(file) > 14)
-    {
-      f->eax = false;
-    }
+    f->eax = false;
   else
     {
       lock_acquire(&filesys_lock);
@@ -241,9 +225,8 @@ void
 remove_syscall (struct intr_frame *f UNUSED, const char *file UNUSED)
 {
   if(is_address_valid(f))
-    {
       exit_syscall(f, -1);
-    }
+  
   lock_acquire(&filesys_lock);
   f->eax = filesys_remove(file);
   lock_release(&filesys_lock);
