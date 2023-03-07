@@ -37,11 +37,11 @@ process_execute (const char *command)
   lock_init (&thread_details->rc_lock);
   thread_details->is_being_waited = false;
   sema_init (&thread_details->wait_sema, 0);
-  thread_details->start_success = true;
 
   /* Create and initialize thread_args. */
   struct thread_args *thread_args = (struct thread_args *) palloc_get_page (0);
   thread_args->thread_details = thread_details;
+  thread_args->success = true;
 
   /* Set current working directory */
   struct thread *parent_thread = thread_current ();
@@ -74,17 +74,19 @@ process_execute (const char *command)
   /* Wait for new thread to start. */
   sema_down (&thread_details->wait_sema);
 
-  /* Free pages */
-  palloc_free_page (thread_args->command);
-  palloc_free_page (thread_args);
-
   /* Check success */
-  if (!thread_details->start_success)
+  if (!thread_args->success)
     {
-      list_remove(&thread_details->elem);
+      list_remove (&thread_details->elem);
+      palloc_free_page (thread_args->command);
+      palloc_free_page (thread_args);
       palloc_free_page (thread_details);
       return TID_ERROR;
     }
+
+  /* Free pages */
+  palloc_free_page (thread_args->command);
+  palloc_free_page (thread_args);
 
   return tid;
 }
@@ -113,11 +115,14 @@ start_process (void *thread_args_void)
   /* If load failed, quit. */
   if (!success)
     {
+      thread_args->success = false;
       child_thread->thread_details->exit_code = -1;
-      child_thread->thread_details->start_success = false;
       sema_up (&child_thread->thread_details->wait_sema);
       thread_exit ();
     }
+  
+  /* Set current working directory */
+  child_thread->cwd = thread_args->cwd ? dir_reopen (thread_args->cwd) : dir_open_root ();
   
   sema_up (&child_thread->thread_details->wait_sema);
 
@@ -158,15 +163,12 @@ process_wait (tid_t child_tid)
         }
     }
   
-  /* Return -1 if no child. */
-  if (child_details == NULL)
-    return -1;
-  
-  /* Return -1 if child is being waited */
-  if (child_details->is_being_waited)
+  /* Return -1 if no child or parent is waiting. */
+  if (child_details == NULL || child_details->is_being_waited)
     return -1;
   
   /* Wait for the child. */
+  child_details->is_being_waited = true;
   sema_down (&child_details->wait_sema);
 
   /* Remove child from the children list. */
@@ -190,6 +192,10 @@ process_exit (void)
   lock_release (&cur->thread_details->rc_lock);
   if (cur->thread_details->reference_count == 0)
     palloc_free_page (cur->thread_details);
+  
+  /* Close current working directory */
+  if (cur->cwd != NULL)
+    dir_close(cur->cwd);
   
   /* Free unreferenced children details. */
   for (struct list_elem *e = list_begin (&cur->children_details);
@@ -353,6 +359,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", program_name);
       goto done;
     }
+  t->executable = file;
+  file_deny_write (file);
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr

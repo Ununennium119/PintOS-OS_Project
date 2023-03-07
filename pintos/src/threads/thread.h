@@ -120,8 +120,6 @@ struct thread_details
 		bool is_being_waited;
     struct semaphore wait_sema;
 
-    bool start_success;
-
     struct list_elem elem;
    };
 

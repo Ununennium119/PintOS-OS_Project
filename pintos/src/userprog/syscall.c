@@ -16,7 +16,7 @@ static void syscall_handler (struct intr_frame *);
 bool is_string_valid (const char *string);
 bool is_address_valid (const void *address);
 
-unsigned get_argc(uint32_t syscall_number);
+unsigned get_argc(int syscall_number);
 
 void halt_syscall (void);
 void exit_syscall (struct intr_frame *f, int status);
@@ -45,19 +45,25 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f)
 {
-  uint32_t *args = ((uint32_t*) f->esp);
-
-  /* validate syscall number address */
-  if (!is_address_valid (args))
+  if (f == NULL)
     {
       exit_syscall (f, -1);
       return;
     }
-  uint32_t syscall_number = args[0];
+  
+  uint32_t *args = ((uint32_t*) f->esp);
+
+  /* validate syscall number address */
+  if (!is_address_valid (args) || !is_address_valid (args + 1))
+    {
+      exit_syscall (f, -1);
+      return;
+    }
+  int syscall_number = (int) args[0];
 
   /* validate arguments addresses */
   unsigned argc = get_argc (syscall_number);
-  for (unsigned i = 1; i <= argc; i++)
+  for (unsigned i = 1; i <= argc + 1; i++)
     {
       if (!is_address_valid (args + i))
         {
@@ -150,7 +156,7 @@ is_string_valid (const char *string)
 
 
 unsigned
-get_argc(uint32_t syscall_number)
+get_argc(int syscall_number)
 {
   switch (syscall_number)
     {
