@@ -37,6 +37,7 @@ process_execute (const char *command)
   lock_init (&thread_details->rc_lock);
   thread_details->is_being_waited = false;
   sema_init (&thread_details->wait_sema, 0);
+  thread_details->start_success = true;
 
   /* Create and initialize thread_args. */
   struct thread_args *thread_args = (struct thread_args *) palloc_get_page (0);
@@ -61,9 +62,9 @@ process_execute (const char *command)
   tid = thread_create (command, PRI_DEFAULT, start_process, thread_args);
   if (tid == TID_ERROR)
     {
-      palloc_free_page (thread_details);
       palloc_free_page (thread_args->command);
       palloc_free_page (thread_args);
+      palloc_free_page (thread_details);
       return TID_ERROR;
     }
 
@@ -72,6 +73,18 @@ process_execute (const char *command)
   
   /* Wait for new thread to start. */
   sema_down (&thread_details->wait_sema);
+
+  /* Free pages */
+  palloc_free_page (thread_args->command);
+  palloc_free_page (thread_args);
+
+  /* Check success */
+  if (!thread_details->start_success)
+    {
+      list_remove(&thread_details->elem);
+      palloc_free_page (thread_details);
+      return TID_ERROR;
+    }
 
   return tid;
 }
@@ -97,12 +110,11 @@ start_process (void *thread_args_void)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (thread_args->command, &if_.eip, &if_.esp);
 
-  palloc_free_page (thread_args);
-
   /* If load failed, quit. */
   if (!success)
     {
       child_thread->thread_details->exit_code = -1;
+      child_thread->thread_details->start_success = false;
       sema_up (&child_thread->thread_details->wait_sema);
       thread_exit ();
     }
@@ -417,9 +429,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Set up stack. */
   if (!setup_stack (esp, argc, argv))
     goto done;
-  
-  /* Free page */
-  palloc_free_page((char *) file_name);
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
