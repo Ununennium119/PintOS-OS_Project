@@ -257,8 +257,7 @@ void
 remove_syscall (struct intr_frame *f, const char *file)
 {
   if (!is_string_valid (file))
-    printf("HERE\n");
-    // exit_syscall (f, -1);
+    exit_syscall (f, -1);
   
   lock_acquire (&filesys_lock);
   f->eax = filesys_remove (file);
