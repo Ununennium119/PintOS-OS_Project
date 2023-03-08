@@ -330,7 +330,30 @@ tell_syscall (struct intr_frame *f UNUSED, int fd UNUSED)
 void
 close_syscall (struct intr_frame *f UNUSED, int fd UNUSED)
 {
-    // ToDo: Implement
+    // i guess i must check first this file descriptor points to which file and
+    // if the fd is valid then close the correspondded file
+
+    // similar to the read command
+
+    printf("miowwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww %d", fd);
+    struct file *file = get_file_by_fd (fd);
+    if (file)
+      {
+        int result = free_fd (fd);
+        if (result == -1)
+          {
+            f->eax = -1;
+          }
+        else  
+          {
+            file_close (file);
+            f->eax = 0;
+          }
+      } 
+    else 
+      {
+        exit_syscall(f, -1);
+      }
 }
 
 /* Other Syscalls */

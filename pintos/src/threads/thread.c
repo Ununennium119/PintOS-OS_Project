@@ -626,6 +626,23 @@ create_fd (struct file* file)
   return num;
 }
 
+/* free file descriptor*/
+int
+free_fd (int fd) 
+{
+  struct thread* t = thread_current (); 
+  if (t->fd[fd]->file_id == -1) 
+    {
+      return -1;
+    }
+  else
+    {
+      t->fd[fd]->file_id = -1;
+      return 0;
+    }
+}
+
+
 /* get last empty fd*/
 int 
 get_last_free_fd (struct thread* t)
