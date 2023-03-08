@@ -350,24 +350,21 @@ write_syscall (struct intr_frame *f, int fd, void *buffer, unsigned size)
 
 void
 seek_syscall (struct intr_frame *f UNUSED, int fd UNUSED, unsigned position UNUSED)
-{
-    // ToDo: Implement
+{    
+  struct file* file = get_file_by_fd (fd);
+  f->eax = file_seek (file, position);
 }
 
 void
 tell_syscall (struct intr_frame *f UNUSED, int fd UNUSED)
 {
-    // ToDo: Implement
+  struct file* file =  get_file_by_fd (fd);
+  f->eax = file_tell (file);
 }
 
 void
 close_syscall (struct intr_frame *f UNUSED, int fd UNUSED)
 {
-    // i guess i must check first this file descriptor points to which file and
-    // if the fd is valid then close the correspondded file
-
-    // similar to the read command
-
     struct file *file = get_file_by_fd (fd);
     if (file)
       {
