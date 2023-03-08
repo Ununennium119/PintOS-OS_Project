@@ -351,7 +351,6 @@ close_syscall (struct intr_frame *f UNUSED, int fd UNUSED)
 
     // similar to the read command
 
-    printf("miowwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww %d", fd);
     struct file *file = get_file_by_fd (fd);
     if (file)
       {
