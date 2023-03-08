@@ -8,15 +8,19 @@
 #include "process.h"
 #include "pagedir.h"
 #include "devices/shutdown.h"
+#include "devices/input.h"
 #include "filesys/filesys.h"
+#include "filesys/file.h"
 #include "threads/synch.h"
 
 static void syscall_handler (struct intr_frame *);
 
 bool is_string_valid (const char *string);
 bool is_address_valid (const void *address);
+struct file * get_file_by_fd (int fd);
+int get_filesize (int fd);
 
-unsigned get_argc(int syscall_number);
+unsigned get_argc (int syscall_number);
 
 void halt_syscall (void);
 void exit_syscall (struct intr_frame *f, int status);
@@ -38,7 +42,7 @@ void
 syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
-  lock_init(&filesys_lock);
+  lock_init (&filesys_lock);
 }
 
 
@@ -123,7 +127,7 @@ is_address_valid (const void *address)
     return false;
   
 #ifdef USERPROG
-  uint32_t *pagedir = thread_current()->pagedir;
+  uint32_t *pagedir = thread_current ()->pagedir;
   if (pagedir == NULL || pagedir_get_page (pagedir, address) == NULL)
     return false;
 #endif
@@ -142,7 +146,7 @@ is_string_valid (const char *string)
   char *kernel_virtual_address = pagedir_get_page (pagedir, string);
   if (kernel_virtual_address == NULL)
     return false;
-  return is_address_valid(string + strlen (kernel_virtual_address) + 1);
+  return is_address_valid (string + strlen (kernel_virtual_address) + 1);
 #endif
 
   return true;
@@ -150,7 +154,7 @@ is_string_valid (const char *string)
 
 
 struct file * 
-get_file_by_fd(int fd) 
+get_file_by_fd (int fd) 
 {
   struct thread *t = thread_current ();
   if (fd < 0 || fd >= MAX_FILE_DESCRIPTOR || t->fd[fd]->file_id != fd)
@@ -165,13 +169,17 @@ get_filesize (int fd)
   struct file *file = get_file_by_fd (fd);
   if (!file)
     return -1;
+  
+  lock_acquire (&filesys_lock);
+  int file_len = file_length (file);
+  lock_release (&filesys_lock);
 
-  return file_length (file);
+  return file_len;
 }
 
 
 unsigned
-get_argc(int syscall_number)
+get_argc (int syscall_number)
 {
   switch (syscall_number)
     {
@@ -216,8 +224,8 @@ exit_syscall (struct intr_frame *f, int status)
 void
 exec_syscall (struct intr_frame *f, const char *file)
 {
-  if (!is_string_valid(file))
-    exit_syscall(f, -1);
+  if (!is_string_valid (file))
+    exit_syscall (f, -1);
 
   f->eax = process_execute (file);
 }
@@ -230,88 +238,84 @@ wait_syscall (struct intr_frame *f, tid_t tid)
 
 /* File Operation Syscalls */
 void
-create_syscall (struct intr_frame *f UNUSED, const char *file UNUSED, unsigned initial_size UNUSED)
+create_syscall (struct intr_frame *f, const char *file, unsigned initial_size)
 {
-  if (!is_address_valid(file))
-    exit_syscall(f, -1);
+  if (!is_address_valid (file))
+    exit_syscall (f, -1);
   
-  if(strlen(file) > 14)
+  if (strlen (file) > 14)
     f->eax = false;
   else
     {
-      lock_acquire(&filesys_lock);
+      lock_acquire (&filesys_lock);
       f->eax = filesys_create (file, initial_size);
-      lock_release(&filesys_lock);
+      lock_release (&filesys_lock);
     }
 }
 
 void
-remove_syscall (struct intr_frame *f UNUSED, const char *file UNUSED)
+remove_syscall (struct intr_frame *f, const char *file)
 {
-  if(is_address_valid(file))
-      exit_syscall(f, -1);
+  if (!is_string_valid (file))
+    printf("HERE\n");
+    // exit_syscall (f, -1);
   
-  lock_acquire(&filesys_lock);
-  f->eax = filesys_remove(file);
-  lock_release(&filesys_lock);
+  lock_acquire (&filesys_lock);
+  f->eax = filesys_remove (file);
+  lock_release (&filesys_lock);
 }
 
 void
-open_syscall (struct intr_frame *f UNUSED, const char *file UNUSED)
+open_syscall (struct intr_frame *f, const char *file)
 {
-    if(!is_string_valid (file))
-      {
-        exit_syscall(f, -1);
-      }
+    if (!is_string_valid (file))
+      exit_syscall (f, -1);
 
     lock_acquire (&filesys_lock);
     struct file* file_ = filesys_open (file);
     lock_release (&filesys_lock);
-    if (file_ == NULL)
-      f->eax = -1;
-    else
+    if (file_)
       {
-        int fd = create_fd(file_);
+        int fd = create_fd (file_);
         f->eax = fd;
       }
+    else
+      f->eax = -1;
 }
 
 void
-filesize_syscall (struct intr_frame *f UNUSED, int fd UNUSED)
+filesize_syscall (struct intr_frame *f, int fd)
 {
   f->eax = get_filesize (fd);
 }
 
 void
-read_syscall (struct intr_frame *f UNUSED, int fd UNUSED, void *buffer UNUSED, unsigned size UNUSED)
+read_syscall (struct intr_frame *f, int fd, void *buffer, unsigned size)
 {
-    // TODO check inputs
-    if (!is_string_valid(buffer))
-      exit_syscall(f, -1);
-    int read_bytes_conut = 0;
-    if (fd == STDIN_FILENO) 
+  if (!is_string_valid (buffer))
+    exit_syscall (f, -1);
+  int read_bytes_conut = 0;
+  if (fd == STDIN_FILENO) 
     {
-      for (int i = 0; i < size; i++) 
-      {
-        ((char *) buffer) [i]= input_getc();
-        read_bytes_conut++;
-      }
+      for (unsigned i = 0; i < size; i++) 
+        {
+          ((char *) buffer)[i] = input_getc ();
+          read_bytes_conut++;
+        }
     } 
-    else if (fd == STDOUT_FILENO) 
+  else if (fd == STDOUT_FILENO) 
+    exit_syscall (f, -1);
+  else 
     {
-      exit_syscall(f, -1);
-    }
-    else 
-    {
-      struct file *file = get_file_by_fd(fd);
+      struct file *file = get_file_by_fd (fd);
       if (file)
-      {
-        read_bytes_conut = file_read (file, buffer, size);
-      }
-      else 
-      {
-        exit_syscall(f, -1);
-      }
+        {
+          lock_acquire (&filesys_lock);
+          read_bytes_conut = file_read (file, buffer, size);
+          lock_release (&filesys_lock);
+        }
+      else
+        f->eax = -1;
     }
   f->eax = read_bytes_conut;
 }
@@ -319,70 +323,82 @@ read_syscall (struct intr_frame *f UNUSED, int fd UNUSED, void *buffer UNUSED, u
 void
 write_syscall (struct intr_frame *f, int fd, void *buffer, unsigned size)
 {
-  if (!is_string_valid(buffer))
-    exit_syscall(f, -1);
+  if (!is_string_valid (buffer))
+    exit_syscall (f, -1);
+  
   int write_bytes_count = -1;
   if (fd == STDOUT_FILENO)
-  {
-    putbuf (buffer, size);
-    write_bytes_count = size;
-  } 
+    {
+      putbuf (buffer, size);
+      write_bytes_count = size;
+    } 
   else if (fd == STDIN_FILENO)
-  {
-    exit_syscall(f, -1);
-  }
+    {
+      exit_syscall (f, -1);
+    }
   else
-  {
-
-    struct file *file = get_file_by_fd(fd);
-      if (file)
-      {
-        write_bytes_count = file_write (file, buffer, size);
-      }
-      else 
-      {
-        exit_syscall(f, -1);
-      }
-  }
-  
+    {
+      struct file *file = get_file_by_fd (fd);
+        if (file)
+          {
+            lock_acquire (&filesys_lock);
+            write_bytes_count = file_write (file, buffer, size);
+            lock_release (&filesys_lock);
+          }
+        else 
+          f->eax = -1;
+    }
   f->eax = write_bytes_count;
 }
 
 void
-seek_syscall (struct intr_frame *f UNUSED, int fd UNUSED, unsigned position UNUSED)
+seek_syscall (struct intr_frame *f, int fd, unsigned position)
 {    
   struct file* file = get_file_by_fd (fd);
-  f->eax = file_seek (file, position);
+  if (file)
+    {
+      lock_acquire (&filesys_lock);
+      file_seek (file, position);
+      lock_release (&filesys_lock);
+    }
+  else
+    f->eax = -1;
 }
 
 void
-tell_syscall (struct intr_frame *f UNUSED, int fd UNUSED)
+tell_syscall (struct intr_frame *f, int fd)
 {
-  struct file* file =  get_file_by_fd (fd);
-  f->eax = file_tell (file);
+  struct file* file = get_file_by_fd (fd);
+  if (file)
+    {
+      lock_acquire (&filesys_lock);
+      f->eax = file_tell (file);
+      lock_release (&filesys_lock);
+    }
+  else
+    f->eax = -1;
 }
 
 void
-close_syscall (struct intr_frame *f UNUSED, int fd UNUSED)
+close_syscall (struct intr_frame *f, int fd)
 {
     struct file *file = get_file_by_fd (fd);
     if (file)
       {
         int result = free_fd (fd);
         if (result == -1)
-          {
-            f->eax = -1;
-          }
+          f->eax = -1;
         else  
           {
+            lock_acquire (&filesys_lock);
             file_close (file);
+            lock_release (&filesys_lock);
+
             f->eax = 0;
           }
       } 
     else 
-      {
-        exit_syscall(f, -1);
-      }
+      f->eax = -1;
 }
 
 /* Other Syscalls */

@@ -71,6 +71,9 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 void init_file_descriptors (struct thread* t);
+
+int free_fd (int fd);
+int get_last_free_fd (struct thread* t);
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -182,7 +185,7 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  init_file_descriptors(t);
+  init_file_descriptors (t);
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -291,7 +294,7 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
-  list_remove (&thread_current()->allelem);
+  list_remove (&thread_current ()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
   NOT_REACHED ();
@@ -592,7 +595,7 @@ init_file_descriptors (struct thread* t)
   /* set stdin and stdout file_descriptors */
   for (int i = 0; i < 2; i++)
     {
-      struct file_descriptor* fd = (struct file_descriptor*) palloc_get_page(PAL_USER);
+      struct file_descriptor* fd = (struct file_descriptor*) palloc_get_page (PAL_USER);
       t->fd[i] = fd;
       t->fd[i]->file = NULL;
       t->fd[i]->file_id = i;
@@ -600,7 +603,7 @@ init_file_descriptors (struct thread* t)
 
   for (int i = 2; i < MAX_FILE_DESCRIPTOR; i++)
     {
-      struct file_descriptor* fd = (struct file_descriptor*) palloc_get_page(PAL_USER);
+      struct file_descriptor* fd = (struct file_descriptor*) palloc_get_page (PAL_USER);
       t->fd[i] = fd;
       t->fd[i]->file = NULL;
       t->fd[i]->file_id = -1;
@@ -642,14 +645,13 @@ free_fd (int fd)
     }
 }
 
-
 /* get last empty fd*/
 int 
 get_last_free_fd (struct thread* t)
 {
-  for(int i = 2; i < MAX_FILE_DESCRIPTOR; i++)
+  for (int i = 2; i < MAX_FILE_DESCRIPTOR; i++)
     {
-      if(t->fd[i]->file_id == -1)
+      if (t->fd[i]->file_id == -1)
         {
           return i;
         }

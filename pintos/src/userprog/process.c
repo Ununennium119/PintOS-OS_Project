@@ -52,8 +52,8 @@ process_execute (const char *command)
   thread_args->command = palloc_get_page (0);
   if (thread_args->command == NULL)
     {
-      palloc_free_page(thread_details);
-      palloc_free_page(thread_args);
+      palloc_free_page (thread_details);
+      palloc_free_page (thread_args);
       return TID_ERROR;
     }
   strlcpy (thread_args->command, command, PGSIZE);
@@ -186,6 +186,10 @@ process_exit (void)
 
   sema_up (&cur->thread_details->wait_sema);
 
+  /* Free thread's file descriptors */
+  for (int i = 0; i < MAX_FILE_DESCRIPTOR; i++)
+    palloc_free_page (cur->fd[i]);
+
   /* Free thread details if it is unreferenced. */
   lock_acquire (&cur->thread_details->rc_lock);
   cur->thread_details->reference_count--;
@@ -195,7 +199,7 @@ process_exit (void)
   
   /* Close current working directory */
   if (cur->cwd != NULL)
-    dir_close(cur->cwd);
+    dir_close (cur->cwd);
   
   /* Free unreferenced children details. */
   for (struct list_elem *e = list_begin (&cur->children_details);
@@ -350,7 +354,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   char *program_name = argv[0];
 
   /* Rename thread */
-  strlcpy(t->name, program_name, strlen(program_name) + 1);
+  strlcpy (t->name, program_name, strlen (program_name) + 1);
 
   /* Open executable file. */
   file = filesys_open (program_name);
@@ -577,7 +581,7 @@ setup_stack (void **esp, int argc, char **argv)
           char *argv_addresses[argc];
           for (int i = argc - 1; i >= 0; i--)
             {
-              int arg_length = (strlen(argv[i]) + 1) * sizeof(char);
+              int arg_length = (strlen (argv[i]) + 1) * sizeof (char);
               *esp -= arg_length;
               memcpy (*esp, argv[i], arg_length);
               argv_addresses[i] = (char *) *esp;
