@@ -18,6 +18,7 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -32,14 +33,14 @@ process_execute (const char *command)
   tid_t tid;
 
   /* Create and initialize thread_details. */
-  struct thread_details *thread_details = (struct thread_details *) palloc_get_page (0);
+  struct thread_details *thread_details = (struct thread_details *) malloc (sizeof (struct thread_details));
   thread_details->reference_count = 2;
   lock_init (&thread_details->rc_lock);
   thread_details->is_being_waited = false;
   sema_init (&thread_details->wait_sema, 0);
 
   /* Create and initialize thread_args. */
-  struct thread_args *thread_args = (struct thread_args *) palloc_get_page (0);
+  struct thread_args *thread_args = (struct thread_args *) malloc (sizeof (struct thread_args));
   thread_args->thread_details = thread_details;
   thread_args->success = true;
 
@@ -49,11 +50,11 @@ process_execute (const char *command)
 
   /* Make a copy of COMMAND.
      Otherwise there's a race between the caller and load(). */
-  thread_args->command = palloc_get_page (0);
+  thread_args->command = malloc (sizeof (char) * (strlen (command) + 1));
   if (thread_args->command == NULL)
     {
-      palloc_free_page (thread_details);
-      palloc_free_page (thread_args);
+      free (thread_details);
+      free (thread_args);
       return TID_ERROR;
     }
   strlcpy (thread_args->command, command, PGSIZE);
@@ -62,9 +63,9 @@ process_execute (const char *command)
   tid = thread_create (command, PRI_DEFAULT, start_process, thread_args);
   if (tid == TID_ERROR)
     {
-      palloc_free_page (thread_args->command);
-      palloc_free_page (thread_args);
-      palloc_free_page (thread_details);
+      free (thread_args->command);
+      free (thread_args);
+      free (thread_details);
       return TID_ERROR;
     }
 
@@ -78,15 +79,15 @@ process_execute (const char *command)
   if (!thread_args->success)
     {
       list_remove (&thread_details->elem);
-      palloc_free_page (thread_args->command);
-      palloc_free_page (thread_args);
-      palloc_free_page (thread_details);
+      free (thread_args->command);
+      free (thread_args);
+      free (thread_details);
       return TID_ERROR;
     }
 
-  /* Free pages */
-  palloc_free_page (thread_args->command);
-  palloc_free_page (thread_args);
+  /* Free resources */
+  free (thread_args->command);
+  free (thread_args);
 
   return tid;
 }
@@ -188,14 +189,14 @@ process_exit (void)
 
   /* Free thread's file descriptors */
   for (int i = 0; i < MAX_FILE_DESCRIPTOR; i++)
-    palloc_free_page (cur->fd[i]);
+    free (cur->fd[i]);
 
   /* Free thread details if it is unreferenced. */
   lock_acquire (&cur->thread_details->rc_lock);
   cur->thread_details->reference_count--;
   lock_release (&cur->thread_details->rc_lock);
   if (cur->thread_details->reference_count == 0)
-    palloc_free_page (cur->thread_details);
+    free (cur->thread_details);
   
   /* Close current working directory */
   if (cur->cwd != NULL)
@@ -214,7 +215,7 @@ process_exit (void)
       if (child_details->reference_count == 0)
         {
           e = list_remove (&child_details->elem)->prev;
-          palloc_free_page (child_details);
+          free (child_details);
         }
     }
 

@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -595,7 +596,7 @@ init_file_descriptors (struct thread* t)
   /* set stdin and stdout file_descriptors */
   for (int i = 0; i < 2; i++)
     {
-      struct file_descriptor* fd = (struct file_descriptor*) palloc_get_page (PAL_USER);
+      struct file_descriptor* fd = (struct file_descriptor*) malloc (sizeof (struct file_descriptor));
       t->fd[i] = fd;
       t->fd[i]->file = NULL;
       t->fd[i]->file_id = i;
@@ -603,7 +604,7 @@ init_file_descriptors (struct thread* t)
 
   for (int i = 2; i < MAX_FILE_DESCRIPTOR; i++)
     {
-      struct file_descriptor* fd = (struct file_descriptor*) palloc_get_page (PAL_USER);
+      struct file_descriptor* fd = (struct file_descriptor*) malloc (sizeof (struct file_descriptor));
       t->fd[i] = fd;
       t->fd[i]->file = NULL;
       t->fd[i]->file_id = -1;
