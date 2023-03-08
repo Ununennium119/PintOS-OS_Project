@@ -88,7 +88,7 @@ syscall_handler (struct intr_frame *f)
         open_syscall (f, (const char *) args[1]);
         break;
       case SYS_FILESIZE:
-        exit_syscall (f, args[1]);
+        filesize_syscall (f, args[1]);
         break;
       case SYS_READ:
         read_syscall (f, args[1], (void *) args[2], args[3]);
@@ -153,8 +153,22 @@ struct file *
 get_file_by_fd(int fd) 
 {
   struct thread *t = thread_current ();
+  if (fd < 0 || fd >= MAX_FILE_DESCRIPTOR || t->fd[fd]->file_id != fd)
+    return NULL;
   return t->fd[fd]->file;
 }
+
+
+int
+get_filesize (int fd)
+{
+  struct file *file = get_file_by_fd (fd);
+  if (!file)
+    return -1;
+
+  return file_length (file);
+}
+
 
 unsigned
 get_argc(int syscall_number)
@@ -265,13 +279,15 @@ open_syscall (struct intr_frame *f UNUSED, const char *file UNUSED)
 void
 filesize_syscall (struct intr_frame *f UNUSED, int fd UNUSED)
 {
-    // ToDo: Implement
+  f->eax = get_filesize (fd);
 }
 
 void
 read_syscall (struct intr_frame *f UNUSED, int fd UNUSED, void *buffer UNUSED, unsigned size UNUSED)
 {
     // TODO check inputs
+    if (!is_string_valid(buffer))
+      exit_syscall(f, -1);
     int read_bytes_conut = 0;
     if (fd == STDIN_FILENO) 
     {
