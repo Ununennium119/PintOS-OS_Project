@@ -319,16 +319,33 @@ read_syscall (struct intr_frame *f UNUSED, int fd UNUSED, void *buffer UNUSED, u
 void
 write_syscall (struct intr_frame *f, int fd, void *buffer, unsigned size)
 {
-  /* ToDo: Complete */
-
-  int result = -1;
+  if (!is_string_valid(buffer))
+    exit_syscall(f, -1);
+  int write_bytes_count = -1;
   if (fd == STDOUT_FILENO)
-    {
-      putbuf (buffer, size);
-      result = size;
-    }
+  {
+    putbuf (buffer, size);
+    write_bytes_count = size;
+  } 
+  else if (fd == STDIN_FILENO)
+  {
+    exit_syscall(f, -1);
+  }
+  else
+  {
+
+    struct file *file = get_file_by_fd(fd);
+      if (file)
+      {
+        write_bytes_count = file_write (file, buffer, size);
+      }
+      else 
+      {
+        exit_syscall(f, -1);
+      }
+  }
   
-  f->eax = result;
+  f->eax = write_bytes_count;
 }
 
 void
