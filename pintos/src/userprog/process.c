@@ -172,9 +172,6 @@ process_wait (tid_t child_tid)
   child_details->is_being_waited = true;
   sema_down (&child_details->wait_sema);
 
-  /* Remove child from the children list. */
-  list_remove (&child_details->elem);
-
   return child_details->exit_code;
 }
 
