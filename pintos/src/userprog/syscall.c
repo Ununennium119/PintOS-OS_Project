@@ -55,17 +55,14 @@ syscall_handler (struct intr_frame *f)
   uint32_t *args = ((uint32_t*) f->esp);
 
   /* validate syscall number address */
-  if (!is_address_valid (args) || !is_address_valid (args + 1))
-    exit_syscall (f, -1);
+  IS_VALID (!is_address_valid (args) || !is_address_valid (args + 1), f);
+
   int syscall_number = (int) args[0];
 
   /* validate arguments addresses */
   unsigned argc = get_argc (syscall_number);
   for (unsigned i = 1; i <= argc + 1; i++)
-    {
-      if (!is_address_valid (args + i))
-        exit_syscall (f, -1);
-    }
+      IS_VALID (!is_address_valid (args + i), f);
 
   /* run syscall function */
   switch (syscall_number)
@@ -152,17 +149,24 @@ is_string_valid (const char *string)
   return true;
 }
 
+/* Checks validity of file descriptor */
+bool
+is_fd_invalid(int fd, struct thread *t)
+{
+  return fd < 0 || fd >= MAX_FILE_DESCRIPTOR || t->fd[fd]->file_id != fd;
+}
 
+/* Get corresponding pointer to file struct, by its file descriptor */
 struct file * 
 get_file_by_fd (int fd) 
 {
   struct thread *t = thread_current ();
-  if (fd < 0 || fd >= MAX_FILE_DESCRIPTOR || t->fd[fd]->file_id != fd)
+  if (is_fd_invalid(fd, t))
     return NULL;
   return t->fd[fd]->file;
 }
 
-
+/* Get file size of a file, given its file descriptor */
 int
 get_filesize (int fd)
 {
@@ -177,7 +181,7 @@ get_filesize (int fd)
   return file_len;
 }
 
-
+/* Get number of arguments needed for each syscall given its syscall number */
 unsigned
 get_argc (int syscall_number)
 {
@@ -206,6 +210,7 @@ get_argc (int syscall_number)
 
 
 /* Process Control Syscalls */
+
 void
 halt_syscall (void)
 {
@@ -224,8 +229,7 @@ exit_syscall (struct intr_frame *f, int status)
 void
 exec_syscall (struct intr_frame *f, const char *file)
 {
-  if (!is_string_valid (file))
-    exit_syscall (f, -1);
+  IS_VALID (!is_string_valid(file), f);
 
   f->eax = process_execute (file);
 }
@@ -237,11 +241,11 @@ wait_syscall (struct intr_frame *f, tid_t tid)
 }
 
 /* File Operation Syscalls */
+
 void
 create_syscall (struct intr_frame *f, const char *file, unsigned initial_size)
 {
-  if (!is_address_valid (file))
-    exit_syscall (f, -1);
+  IS_VALID (!is_address_valid(file), f);
   
   if (strlen (file) > 14)
     f->eax = false;
@@ -256,8 +260,7 @@ create_syscall (struct intr_frame *f, const char *file, unsigned initial_size)
 void
 remove_syscall (struct intr_frame *f, const char *file)
 {
-  if (!is_string_valid (file))
-    exit_syscall (f, -1);
+  IS_VALID (!is_string_valid(file), f);
   
   lock_acquire (&filesys_lock);
   f->eax = filesys_remove (file);
@@ -267,19 +270,18 @@ remove_syscall (struct intr_frame *f, const char *file)
 void
 open_syscall (struct intr_frame *f, const char *file)
 {
-    if (!is_string_valid (file))
-      exit_syscall (f, -1);
+  IS_VALID (!is_string_valid (file), f);
 
-    lock_acquire (&filesys_lock);
-    struct file* file_ = filesys_open (file);
-    lock_release (&filesys_lock);
-    if (file_)
-      {
-        int fd = create_fd (file_);
-        f->eax = fd;
-      }
-    else
-      f->eax = -1;
+  lock_acquire (&filesys_lock);
+  struct file* file_ = filesys_open (file);
+  lock_release (&filesys_lock);
+  if (file_)
+    {
+      int fd = create_fd (file_);
+      f->eax = fd;
+    }
+  else
+    f->eax = -1;
 }
 
 void
@@ -291,8 +293,8 @@ filesize_syscall (struct intr_frame *f, int fd)
 void
 read_syscall (struct intr_frame *f, int fd, void *buffer, unsigned size)
 {
-  if (!is_string_valid (buffer))
-    exit_syscall (f, -1);
+  IS_VALID (!is_string_valid (buffer) || fd == STDOUT_FILENO, f);
+
   int read_bytes_conut = 0;
   if (fd == STDIN_FILENO) 
     {
@@ -302,8 +304,6 @@ read_syscall (struct intr_frame *f, int fd, void *buffer, unsigned size)
           read_bytes_conut++;
         }
     } 
-  else if (fd == STDOUT_FILENO) 
-    exit_syscall (f, -1);
   else 
     {
       struct file *file = get_file_by_fd (fd);
@@ -322,8 +322,7 @@ read_syscall (struct intr_frame *f, int fd, void *buffer, unsigned size)
 void
 write_syscall (struct intr_frame *f, int fd, void *buffer, unsigned size)
 {
-  if (!is_string_valid (buffer))
-    exit_syscall (f, -1);
+  IS_VALID (!is_string_valid (buffer) || fd == STDIN_FILENO, f);
   
   int write_bytes_count = -1;
   if (fd == STDOUT_FILENO)
@@ -331,10 +330,6 @@ write_syscall (struct intr_frame *f, int fd, void *buffer, unsigned size)
       putbuf (buffer, size);
       write_bytes_count = size;
     } 
-  else if (fd == STDIN_FILENO)
-    {
-      exit_syscall (f, -1);
-    }
   else
     {
       struct file *file = get_file_by_fd (fd);
@@ -401,6 +396,7 @@ close_syscall (struct intr_frame *f, int fd)
 }
 
 /* Other Syscalls */
+
 void
 practice_syscall (struct intr_frame *f, int i)
 {
