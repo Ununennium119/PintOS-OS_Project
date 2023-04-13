@@ -25,7 +25,7 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
-#define MAX_FILE_DESCRIPTOR 16
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -82,7 +82,6 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
-
 struct thread
   {
     /* Owned by thread.c. */
@@ -101,34 +100,9 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
 #endif
 
-		struct dir *cwd;
-		struct file *executable;
-		struct thread_details *thread_details;
-		struct list children_details;
-
-    struct file_descriptor *fd[MAX_FILE_DESCRIPTOR];
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
-
-struct thread_details
-  {
-    tid_t tid;
-    int exit_code;
-
-    int reference_count;
-    struct lock rc_lock;
-
-		bool is_being_waited;
-    struct semaphore wait_sema;
-
-    struct list_elem elem;
-   };
-
-struct file_descriptor {
-  int file_id;
-  struct file *file;
-};
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -165,7 +139,5 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
-int free_fd(int fd);
-int create_fd(struct file*);
-void init_file_descriptors(struct thread*);
+
 #endif /* threads/thread.h */

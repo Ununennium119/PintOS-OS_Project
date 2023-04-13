@@ -11,7 +11,6 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
-#include "threads/malloc.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -71,10 +70,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-void init_file_descriptors (struct thread* t);
 
-int free_fd (int fd);
-int get_last_free_fd (struct thread* t);
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -186,7 +182,6 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  init_file_descriptors (t);
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -295,7 +290,7 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
-  list_remove (&thread_current ()->allelem);
+  list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
   NOT_REACHED ();
@@ -468,11 +463,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-  list_init (&t->children_details);
+
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
-  
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -588,74 +582,3 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
-
-/* init file descriptors of thread. empty file descriptors are assigned -1.*/
-void 
-init_file_descriptors (struct thread* t)
-{
-  /* set stdin and stdout file_descriptors */
-  for (int i = 0; i < 2; i++)
-    {
-      struct file_descriptor* fd = (struct file_descriptor*) malloc (sizeof (struct file_descriptor));
-      t->fd[i] = fd;
-      t->fd[i]->file = NULL;
-      t->fd[i]->file_id = i;
-    }
-
-  for (int i = 2; i < MAX_FILE_DESCRIPTOR; i++)
-    {
-      struct file_descriptor* fd = (struct file_descriptor*) malloc (sizeof (struct file_descriptor));
-      t->fd[i] = fd;
-      t->fd[i]->file = NULL;
-      t->fd[i]->file_id = -1;
-    }
-}
-
-/* add new file to thread and assign fd. */
-int 
-create_fd (struct file* file)
-{
-  struct thread* t = thread_current ();
-  int num = get_last_free_fd (t);
-  /* if there is no more file capicity return -1*/
-  if (num == -1)
-    {
-      return -1;
-    }
-    
-  /* set file and its number */
-  t->fd[num]->file = file;
-  t->fd[num]->file_id = num;
-
-  return num;
-}
-
-/* free file descriptor*/
-int
-free_fd (int fd) 
-{
-  struct thread* t = thread_current (); 
-  if (t->fd[fd]->file_id == -1) 
-    {
-      return -1;
-    }
-  else
-    {
-      t->fd[fd]->file_id = -1;
-      return 0;
-    }
-}
-
-/* get last empty fd*/
-int 
-get_last_free_fd (struct thread* t)
-{
-  for (int i = 2; i < MAX_FILE_DESCRIPTOR; i++)
-    {
-      if (t->fd[i]->file_id == -1)
-        {
-          return i;
-        }
-    }
-    return -1;
-}
