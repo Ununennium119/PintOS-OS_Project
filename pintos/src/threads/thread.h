@@ -102,6 +102,11 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+    /* Owned by timer.c */
+    struct semaphore sleep_sema;
+		int64_t wakeup_time;
+		struct list_elem sleep_elem;
   };
 
 /* If false (default), use round-robin scheduler.
@@ -139,5 +144,9 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+bool thread_compare_wakeup (const struct list_elem* a,
+														const struct list_elem* b,
+														void *aux UNUSED);
 
 #endif /* threads/thread.h */
