@@ -201,6 +201,8 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  if (thread_current ()->priority < t->priority)
+    thread_yield ();
   return tid;
 }
 
@@ -491,6 +493,11 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   sema_init (&t->sleep_sema, 0);
+
+  t->base_priority = priority;
+  t->lock_waiting_for = NULL;
+  list_init(&t->held_locks);
+
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
