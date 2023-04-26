@@ -68,7 +68,7 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0)
     {
-      list_push_back (&sema->waiters, &thread_current ()->elem);
+      list_insert_ordered (&sema->waiters, &thread_current ()->elem, thread_priority_more, NULL);
       thread_block ();
     }
   sema->value--;
@@ -193,7 +193,8 @@ lock_priority_more (const struct list_elem* a,
 }
 
 /* Takes care of priority donation tasks. */
-void handle_inversion_donation (struct thread* cur){
+void handle_inversion_donation (struct thread* cur)
+{
   struct lock* lock = cur->lock_waiting_for;
   struct thread* t = cur;
   int i = 0;
@@ -206,7 +207,7 @@ void handle_inversion_donation (struct thread* cur){
 
     /* update priorities */    
     t->lock_waiting_for->max_priority = t->priority;
-
+    t->is_donated = true;
     thread_set_priority_for_given(t->lock_waiting_for->holder, t->priority, true);
 
     if(!lock->holder->lock_waiting_for)
@@ -292,22 +293,29 @@ lock_release (struct lock *lock)
   sema_up (&lock->semaphore);
 
   /* remove lock from current thread held locks */
-  list_remove(&lock->elem);
+  list_remove (&lock->elem);
   lock->max_priority = LOCK_BASE_PRI;
 
   /* if there is no held_locks set priority to base_priority, 
     otherwise check the other_lock max_priority and set priority! */
   if (list_empty (&curr->held_locks))
-    thread_set_priority(curr->base_priority);
+    {
+      curr->is_donated = false;
+      thread_set_priority(curr->base_priority);
+    }
   else
     {
       struct lock* other_lock = list_entry(list_front(&curr->held_locks), struct lock, elem);
       if (other_lock->max_priority != LOCK_BASE_PRI)
         {
+          curr->is_donated = true;
           thread_set_priority_for_given(curr, other_lock->max_priority, true);
         }
-      else 
-        thread_set_priority(curr->base_priority);
+      else
+        { 
+          curr->is_donated = false;
+          thread_set_priority(curr->base_priority);
+        }
     }
 
   intr_set_level(old_level);
@@ -329,6 +337,7 @@ struct semaphore_elem
   {
     struct list_elem elem;              /* List element. */
     struct semaphore semaphore;         /* This semaphore. */
+    int priority;
   };
 
 /* Initializes condition variable COND.  A condition variable

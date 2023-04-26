@@ -350,16 +350,25 @@ thread_set_priority_for_given (struct thread* t, int new_priority, bool is_for_d
   enum intr_level old_level = intr_disable ();
 
   if (is_for_donation)
-    t->priority = new_priority;
+    {
+      if(new_priority >= t->priority)
+        t->priority = new_priority;
+      t->is_donated = true;
+    }
   else
-    t->base_priority = t->priority = new_priority;
+    {
+      if (t->is_donated && new_priority < t->priority)
+        t->base_priority = new_priority;
+      else 
+        t->base_priority = t->priority = new_priority;
 
+    }
   if (t->status == THREAD_READY)
     {
       thread_update_readylist (t);
     }
   else if (t->status == THREAD_RUNNING &&
-    list_entry (list_front (&ready_list), struct thread, elem)->priority > t->priority) 
+    list_entry (list_begin (&ready_list), struct thread, elem)->priority > t->priority) 
     {
       thread_yield ();
     }
