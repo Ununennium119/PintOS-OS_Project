@@ -159,4 +159,6 @@ bool thread_compare_wakeup (const struct list_elem* a,
 														const struct list_elem* b,
 														void *aux UNUSED);
 void thread_update_readylist (struct thread* t);
+void thread_set_priority_for_given (struct thread* t, int new_priority, bool is_for_donation);
+
 #endif /* threads/thread.h */

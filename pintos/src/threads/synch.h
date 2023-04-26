@@ -3,6 +3,7 @@
 
 #include <list.h>
 #include <stdbool.h>
+#include <list.h>
 
 /* A counting semaphore. */
 struct semaphore
@@ -24,7 +25,7 @@ struct lock
     struct semaphore semaphore; /* Binary semaphore controlling access. */
 
     int max_priority;           /* Priority of the highest-priority thread waiting for it. */
-    list_elem elem;             /* List element for priority donation. */
+    struct list_elem elem;      /* List element for priority donation. */
   
   };
 

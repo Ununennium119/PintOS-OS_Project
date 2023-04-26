@@ -179,6 +179,17 @@ lock_init (struct lock *lock)
 
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
+  lock->max_priority = LOCK_BASE_PRI;
+}
+
+bool
+lock_priority_more (const struct list_elem* a,
+												const struct list_elem* b,
+												void *aux UNUSED)
+{
+  const struct lock* lock_a = list_entry (a, struct lock, elem);
+  const struct lock* lock_b = list_entry (b, struct lock, elem);
+  return lock_a->max_priority > lock_b->max_priority;
 }
 
 /* Takes care of priority donation tasks. */
@@ -195,10 +206,8 @@ void handle_inversion_donation (struct thread* cur){
 
     /* update priorities */    
     t->lock_waiting_for->max_priority = t->priority;
-    t->lock_waiting_for->holder->priority = t->priority;
 
-    /* update reaedy list because of change in priority */
-    thread_update_ready_list(t);
+    thread_set_priority_for_given(t->lock_waiting_for->holder, t->priority, true);
 
     if(!lock->holder->lock_waiting_for)
       return;
@@ -229,13 +238,18 @@ lock_acquire (struct lock *lock)
   struct thread* curr = thread_current ();
   curr->lock_waiting_for = lock;
 
-  handle_inversion_donation(curr);
+  handle_inversion_donation (curr);
 
   sema_down (&lock->semaphore);
+  /* set properties realted to having lock */
   lock->holder = thread_current ();
   lock->holder->lock_waiting_for = NULL;
-
+  
+  /* insert in held locks */
+  list_insert_ordered (&curr->held_locks, &lock->elem, lock_priority_more, NULL);
+  
   /* enable interupts */
+  intr_set_level (old_level);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -269,8 +283,34 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+  struct thread* curr = thread_current ();
+
+  /* disable interupts */
+  enum intr_level old_level = intr_disable ();
+
   lock->holder = NULL;
   sema_up (&lock->semaphore);
+
+  /* remove lock from current thread held locks */
+  list_remove(&lock->elem);
+  lock->max_priority = LOCK_BASE_PRI;
+
+  /* if there is no held_locks set priority to base_priority, 
+    otherwise check the other_lock max_priority and set priority! */
+  if (list_empty (&curr->held_locks))
+    thread_set_priority(curr->base_priority);
+  else
+    {
+      struct lock* other_lock = list_entry(list_front(&curr->held_locks), struct lock, elem);
+      if (other_lock->max_priority != LOCK_BASE_PRI)
+        {
+          thread_set_priority_for_given(curr, other_lock->max_priority, true);
+        }
+      else 
+        thread_set_priority(curr->base_priority);
+    }
+
+  intr_set_level(old_level);
 }
 
 /* Returns true if the current thread holds LOCK, false
