@@ -246,7 +246,7 @@ lock_acquire (struct lock *lock)
   lock->holder->lock_waiting_for = NULL;
   
   /* insert in held locks */
-  list_insert_ordered (&curr->held_locks, &lock->elem, lock_priority_more, NULL);
+  list_insert_ordered (&thread_current ()->held_locks, &lock->elem, lock_priority_more, NULL);
   
   /* enable interupts */
   intr_set_level (old_level);
