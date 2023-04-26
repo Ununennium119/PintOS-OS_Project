@@ -181,6 +181,34 @@ lock_init (struct lock *lock)
   sema_init (&lock->semaphore, 1);
 }
 
+/* Takes care of priority donation tasks. */
+void handle_inversion_donation (struct thread* cur){
+  struct lock* lock = cur->lock_waiting_for;
+  struct thread* t = cur;
+  int i = 0;
+  while (i < NESTED_DONATION_MAX_DEPTH){
+    if(!lock->holder)
+      return;
+    
+    if(lock->max_priority >= t->priority)
+      return;
+
+    /* update priorities */    
+    t->lock_waiting_for->max_priority = t->priority;
+    t->lock_waiting_for->holder->priority = t->priority;
+
+    /* update reaedy list because of change in priority */
+    thread_update_ready_list(t);
+
+    if(!lock->holder->lock_waiting_for)
+      return;
+
+    t = lock->holder;
+    lock = t->lock_waiting_for;
+    i++;
+  }
+}
+
 /* Acquires LOCK, sleeping until it becomes available if
    necessary.  The lock must not already be held by the current
    thread.
@@ -196,8 +224,18 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  /* disable interupts for priority management */
+  enum intr_level old_level = intr_disable ();
+  struct thread* curr = thread_current ();
+  curr->lock_waiting_for = lock;
+
+  handle_inversion_donation(curr);
+
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
+  lock->holder->lock_waiting_for = NULL;
+
+  /* enable interupts */
 }
 
 /* Tries to acquires LOCK and returns true if successful or false

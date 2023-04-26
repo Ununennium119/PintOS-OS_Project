@@ -594,3 +594,26 @@ thread_compare_wakeup (const struct list_elem* a,
   const struct thread* thread_b = list_entry (b, struct thread, sleep_elem);
   return thread_a->wakeup_time < thread_b->wakeup_time;
 }
+
+
+bool
+thread_priority_less (const struct list_elem* a,
+												const struct list_elem* b,
+												void *aux UNUSED)
+{
+  const struct thread* thread_a = list_entry (a, struct thread, elem);
+  const struct thread* thread_b = list_entry (b, struct thread, elem);
+  return thread_a->priority < thread_b->priority;
+}
+
+
+void
+thread_update_readylist (struct thread* t)
+{
+  if (t->status == THREAD_READY)
+   {
+     list_remove (&t->elem);
+     list_insert_ordered (&ready_list, &t->elem, thread_priority_less, NULL);
+   } 
+}
+

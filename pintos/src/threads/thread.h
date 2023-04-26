@@ -26,6 +26,10 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+#define LOCK_BASE_PRI -1
+
+#define NESTED_DONATION_MAX_DEPTH 8
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -100,13 +104,19 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
 #endif
 
+    /* */
+    int base_priority;                  /* Base Priority */
+    struct lock* lock_waiting_for;      /* Lock Thread waits on */
+    struct list held_locks;             /* List of held locks */
+
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
     /* Owned by timer.c */
     struct semaphore sleep_sema;
-		int64_t wakeup_time;
-		struct list_elem sleep_elem;
+	 int64_t wakeup_time;
+	 struct list_elem sleep_elem;
   };
 
 /* If false (default), use round-robin scheduler.
@@ -148,5 +158,5 @@ int thread_get_load_avg (void);
 bool thread_compare_wakeup (const struct list_elem* a,
 														const struct list_elem* b,
 														void *aux UNUSED);
-
+void thread_update_readylist (struct thread* t);
 #endif /* threads/thread.h */
