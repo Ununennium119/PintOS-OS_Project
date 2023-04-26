@@ -314,7 +314,7 @@ lock_release (struct lock *lock)
       else
         { 
           curr->is_donated = false;
-          thread_set_priority(curr->base_priority);
+          thread_set_priority_for_given(curr, curr->base_priority, true);
         }
     }
 
