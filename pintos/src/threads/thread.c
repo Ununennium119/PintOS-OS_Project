@@ -351,9 +351,7 @@ thread_set_priority_for_given (struct thread* t, int new_priority, bool is_for_d
 
   if (is_for_donation)
     {
-      if(new_priority >= t->priority)
-        t->priority = new_priority;
-      t->is_donated = true;
+      t->priority = new_priority;
     }
   else
     {
