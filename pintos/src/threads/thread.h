@@ -114,8 +114,8 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
 
     /* Owned by timer.c */
-	 int64_t wakeup_time;
-	 struct list_elem sleep_elem;
+	 	int64_t wakeup_time;								/* Wakeup time. */
+	 	struct list_elem sleep_elem;				/* List element for sleep. */
   };
 
 /* If false (default), use round-robin scheduler.

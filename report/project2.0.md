@@ -12,11 +12,21 @@
 
 عرفان مجیبی mojibierfan@gmail.com
 
-ماموریت‌ها
-====================
+# ماموریت‌ها
 
 ## ساعت زنگ دار
 
+سمافور sleep_sema را از استراکت thread حذف کردیم و به جای آن از توابع thread_block و thread_unblock استفاده کردیم. موارد زیر به استراکت thread اضافه شدند.
+
+```C
+struct thread {
+    ...
+    /* Owned by timer.c */
+    int64_t wakeup_time;            /* Wakeup time. */
+    struct list_elem sleep_elem;    /* List element for sleep. */
+    ...
+}
+```
 
 ## زمان‌بند اولویت‌دار
 
@@ -50,10 +60,10 @@ struct semaphore_elem {
 };
 
 ```
+
 نسبت به داک طراحی، یک فیلد `is_donated` در استراکت ترد اضافه‌تر است که در مواقع ست کردن اولویت لازم بود بدانیم ترد فعلی در وضعیت `donated` هست یا نه.
 
 همچنین موارد طراحی مربوط به `monitor` که با استفاده از `cond_var`پیاده می‌شود در نظر گرفته نشده بود که داخل تست‌ها بود و این مورد را با اضافه کردن یک فیلد `priority` به استراکت `semaphore_elem` هندل کردیم.
-
 
 ## آزمایشگاه زمان‌بندی
 
