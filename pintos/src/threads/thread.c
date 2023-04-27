@@ -499,8 +499,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
-  sema_init (&t->sleep_sema, 0);
-
   t->base_priority = priority;
   t->lock_waiting_for = NULL;
   list_init(&t->held_locks);

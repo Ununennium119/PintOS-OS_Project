@@ -102,9 +102,8 @@ timer_sleep (int64_t ticks)
   enum intr_level old_level = intr_disable ();
   list_insert_ordered (&sleeping_threads, &t->sleep_elem,
                        thread_compare_wakeup, NULL);
+  thread_block ();
   intr_set_level (old_level);
-
-  sema_down (&t->sleep_sema);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -192,7 +191,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
           break;
       }
       list_remove (e);
-      sema_up (&t->sleep_sema);
+      thread_unblock (t);
   }
   intr_set_level (old_level);
 }

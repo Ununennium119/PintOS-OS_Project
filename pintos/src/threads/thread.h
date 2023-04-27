@@ -114,7 +114,6 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
 
     /* Owned by timer.c */
-    struct semaphore sleep_sema;
 	 int64_t wakeup_time;
 	 struct list_elem sleep_elem;
   };
