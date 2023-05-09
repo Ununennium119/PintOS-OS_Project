@@ -32,7 +32,6 @@
 ```C
 #define BUFFER_CACHE_SIZE 64;     /* Number of buffer cache blocks */
 
-struct buffer_cache_block *buffer_cache_array[BUFFER_CACHE_SIZE];     /* Array of buffer cache blocks */
 struct list buffer_cache_list;    /* List of buffer cache blocks */
 struct lock buffer_cache_lock;    /* Lock for modifying buffer_cache_list */
 
