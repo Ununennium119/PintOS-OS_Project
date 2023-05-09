@@ -6,13 +6,13 @@
 
 >>‫نام و آدرس پست الکترونیکی اعضای گروه را در این قسمت بنویسید.
 
-محمد مهدی صادقی moh02sadeghi@gmail.com
+محمد مهدی صادقی <moh02sadeghi@gmail.com>
 
-آرش یادگاری arashyadegari0402@gmail.com
+آرش یادگاری <arashyadegari0402@gmail.com>
 
-محمد خسروی mohamad138121@gmail.com
+محمد خسروی <mohamad138121@gmail.com>
 
-عرفان مجیبی mojibierfan@gmail.com
+عرفان مجیبی <mojibierfan@gmail.com>
 
 مقدمات
 ----------
@@ -29,12 +29,56 @@
 
 >>‫ در این قسمت تعریف هر یک از `struct` ها، اعضای `struct` ها، متغیرهای سراسری یا ایستا، `typedef` ها یا `enum` هایی که ایجاد کرده‌اید یا تغییر داده‌اید را‫ بنویسید و دلیل هر کدام را در حداکثر ۲۵ کلمه توضیح دهید.
 
+```C
+#define BUFFER_CACHE_SIZE 64;     /* Number of buffer cache blocks */
+
+struct buffer_cache_block *buffer_cache_array[BUFFER_CACHE_SIZE];     /* Array of buffer cache blocks */
+struct list buffer_cache_list;    /* List of buffer cache blocks */
+struct lock buffer_cache_lock;    /* Lock for modifying buffer_cache_list */
+
+struct buffer_cache_block
+  {
+    block_sector_t sector;            /* Index of sector */         
+    char data[BLOCK_SECTOR_SIZE];     /* Sector's data */
+    struct lock block_lock;           /* Lock for accessing block */
+    bool valid;                       /* Valid bit */
+    bool dirty;                       /* Dirty bit */
+  }
+
+/* Initializes buffer cache */
+void buffer_cache_init ();
+
+/* Reads from the sector */
+void buffer_cache_read (block_sector_t sector, void void *buffer, off_t size, off_t block_ofs);
+
+/* Writes at the sector */
+void buffer_cache_write (block_sector_t sector, const void *buffer, off_t size, off_t block_ofs);
+
+/* Writes all dirty blocks to disk */
+void buffer_cache_flush ();
+```
+
 الگوریتم‌ها
 ------------
 
+تابع `buffer_cache_init`:
+به تعداد `BUFFER_CACHE_SIZE` از استراکت `buffer_cache_block` می‌سازد و به لیست `buffer_cache_list` اضافه می‌کند. برای هر `buffer_cache_block،` بیت valid برابر با ۰ قرار داده می‌شود و به لاک `block_lock` مقدار اولیه داده می‌شود.
+
+تابع‌های `buffer_cache_read` و `buffer_cache_write`:
+اگر سکتور مورد نظر در بافر کش باشد، عملیات خواندن یا نوشتن در بافر کش انجام می‌شود و آن بلاک به ابتدای لیست منتقل می‌شود. اگر عملیات نوشتن باشد، بیت `dirty` برابر با ۱ قرار داده می‌شود.
+اگر سکتور مورد نظر در بافر کش نباشد، علاوه عملیات خواندن یا نوشتن روی دیسک انجام می‌شود و سکتور وارد بافر کش می‌شود. اگر بیت `dirty` بلاکی که از بافر کش خارج می‌شود برابر ۱ باشد، داده‌های آن روی دیسک نوشته می‌شود.
+
+تابع `buffer_cache_flush`:
+بلاک‌های `dirty` را روی دیسک می‌نویسد و بیت `dirty` آن‌ها را برابر ۰ قرار می‌دهد.
+
 >>‫ توضیح دهید که الگوریتم مورد استفاده‌ی شما به چه صورت یک بلاک را برای جایگزین ‫ شدن انتخاب می‌کند؟
 
+لیست `buffer_cache_list` بر حسب زمان آخرین دسترسی مرتب شده‌است به طوری که بلاکی  که زمان دسترسی به آن از بقیه قدیمی‌تر باشد در انتهای لیست قرار دارد.
+زمانی که به یک بلاک دسترسی می‌شود، آن بلاک را از لیست حذف و به ابتدای آن اضافه می‌کنیم. همچنین وقتی یک بلاک وارد بافر کش می‌شود آن را به ابتدای آن اضافه می‌کنیم. در نتیجه آخرین بلاک لیست همیشه قدیمی‌ترین زمان دسترسی را دارد در زمان O(1) انتخاب می‌شود.
+
 >>‫ روش پیاده‌سازی `read-ahead` را توضیح دهید.
+
+اگر داده مورد نظر در بافر کش نباشد، علاوه بر سکتوری که داده در آن قرار دارد، سکتوری بعدی را نیز وارد بافر کش می‌کنیم.
 
 همگام سازی
 -------------
@@ -46,7 +90,11 @@
 منطق طراحی
 -----------------
 
->>‫ یک سناریو را توضیح دهید که از بافر کش، `read-ahead` و یا از `write-behind` استفاده کند.
+>>‫ یک سناریو را توضیح دهید که  بافر کش از `read-ahead` و یا از `write-behind` استفاده کند.
+
+زمانی که در حال خواندن یک فایل بزرگ که در چند سکتور قرار دارند باشیم،  قبل از اولین دسترسی به یک سکتور، آن سکتور وارد کش می‌شود و در نتیجه زمان دسترسی به آن کاهش می‌یابد.
+
+اگر به صورت غیر منتظره سیستم خاموش شود (مثلا برق برود) داده‌های dirty درون کش که روی دیسک نوشته نشده‌اند از دست می‌روند. اما اگر write-behind انجام شود داده‌ها از دست نمی‌روند.
 
 فایل‌های قابل گسترش
 =====================
