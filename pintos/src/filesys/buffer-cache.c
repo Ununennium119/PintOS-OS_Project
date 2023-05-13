@@ -7,7 +7,12 @@
 #include "devices/block.h"
 #include "threads/malloc.h"
 
-buffer_cache_block_t *check_buffer_cache (block_sector_t sector)
+buffer_cache_block_t *check_buffer_cache (block_sector_t sector);
+buffer_cache_block_t *get_new_block (void);
+
+/* Searches for the sector in buffer cache */
+buffer_cache_block_t *
+check_buffer_cache (block_sector_t sector)
 {
   /* Get buffer cache lock */
   lock_acquire (&buffer_cache_lock);
@@ -39,7 +44,9 @@ buffer_cache_block_t *check_buffer_cache (block_sector_t sector)
   return NULL;
 }
 
-buffer_cache_block_t *get_new_block (void)
+/* Returns a new buffer cache block to use */
+buffer_cache_block_t *
+get_new_block (void)
 {
   /* Get cache buffer lock */
   lock_acquire (&buffer_cache_lock);
@@ -73,7 +80,7 @@ buffer_cache_block_t *get_new_block (void)
 
 /* Initializes buffer cache */
 void
-buffer_cache_init ()
+buffer_cache_init (void)
 {
   lock_init (&buffer_cache_lock);
 
