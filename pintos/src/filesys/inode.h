@@ -20,10 +20,4 @@ void inode_deny_write (struct inode *);
 void inode_allow_write (struct inode *);
 off_t inode_length (const struct inode *);
 
-bool allocate_inode (struct inode_disk*, off_t);
-void free_inode (struct inode);
-
-bool allocate_direct_inode (struct inode_disk*, int, int);
-bool allocate_inode_sector (block_sector_t *);
-bool allocate_indirect_inode (block_sector_t *, size_t);
 #endif /* filesys/inode.h */
