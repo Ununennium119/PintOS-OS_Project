@@ -46,6 +46,10 @@ bool allocate_inode_sector (block_sector_t *);
 bool allocate_indirect_inode (block_sector_t *, size_t);
 struct inode_disk *get_inode_disk (const struct inode *inode);
 
+
+static void deallocate_inode (struct inode*);
+void deallocate_inode_indirect (block_sector_t sector, size_t count);
+void deallocate_inode_double_indirect (block_sector_t sector, size_t count);
 /* Returns the number of sectors to allocate for an inode SIZE
    bytes long. */
 static inline size_t
@@ -260,6 +264,85 @@ allocate_inode_sector (block_sector_t *sector)
       buffer_cache_write (*sector, buffer, 0, BLOCK_SECTOR_SIZE);
     }
   return true;
+}
+
+
+
+void deallocate_inode_indirect (block_sector_t sector, size_t count)
+{
+  indirect_block ib;
+  buffer_cache_read (sector, &ib, BLOCK_SECTOR_SIZE, 0);
+
+  int i;
+  for (i = 0; i < count; i++)
+    free_map_release (ib.blocks[i], 1);
+
+  free_map_release (sector, 1);
+}
+
+void deallocate_inode_double_indirect (block_sector_t sector, size_t count)
+{
+  double_indirect_block dib;
+  buffer_cache_read (sector, &dib, BLOCK_SECTOR_SIZE, 0);
+
+  int i, j = DIV_ROUND_UP (count, IND_BLK_CNT);
+  for (i = 0; i < j; i++)
+    {
+      int sector_cnt = count < IND_BLK_CNT ? count : IND_BLK_CNT;
+      deallocate_inode_indirect (dib.indirect_blocks[i], sector_cnt);
+      count -= sector_cnt;
+    }
+
+  free_map_release(sector, 1);
+}
+
+void deallocate_inode (struct inode* inode)
+{
+  ASSERT (inode != NULL)
+
+  struct inode_disk* disk = get_inode_disk (inode);
+  off_t length = disk->length;
+  if(length < 0)
+    {
+      return;
+    }
+
+  size_t sectors = bytes_to_sectors(length);
+  int i, j;
+  // free direct blocks
+  j = sectors < DIRECT_BLK_CNT ? sectors : DIRECT_BLK_CNT;
+  for(i = 0; i < j; i++)
+    {
+      free_map_release(disk->db[i], 1);
+    }
+
+  sectors -= j;
+
+  if(sectors == 0)
+    {
+      free(disk);
+      return;
+    }
+
+  // free indirect block
+  j = sectors < IND_BLK_CNT ? sectors : IND_BLK_CNT;
+  deallocate_inode_indirect(disk->ib.blocks ,j);
+  sectors -= j;
+
+  if(sectors == 0)
+    {
+      free(disk);
+      return;
+    }
+
+  // free double indirect blocks
+  j = sectors < (IND_BLK_CNT*IND_BLK_CNT) ? sectors : IND_BLK_CNT*IND_BLK_CNT;
+  deallocate_inode_double_indirect (disk->dib.indirect_blocks, j);
+  sectors -= j;
+
+  free(disk);
+  ASSERT (sectors == 0)
+
 }
 
 
