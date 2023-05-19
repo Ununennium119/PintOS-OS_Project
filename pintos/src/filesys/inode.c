@@ -30,8 +30,8 @@ struct double_indirect_block
 struct inode_disk
   {
     block_sector_t db[DIRECT_BLK_CNT];  /* direct blocks */
-    indirect_block ib;                  /* indirect block */
-    double_indirect_block dib;          /* double indirect block */
+    block_sector_t ib;                  /* indirect block */
+    block_sector_t dib;          /* double indirect block */
     bool is_dir;                        /* is directory */
     off_t length;                       /* File size in bytes. */
     unsigned magic;                     /* Magic number. */
@@ -102,7 +102,7 @@ byte_to_sector (const struct inode *inode, off_t pos)
 
       indirect_block ib;
       // TODO problem here
-      buffer_cache_read (disk_inode->ib.blocks,
+      buffer_cache_read (disk_inode->ib,
                   &ib, 0, BLOCK_SECTOR_SIZE);
       free(disk_inode);
       return ib.blocks[target_block];
@@ -115,7 +115,7 @@ byte_to_sector (const struct inode *inode, off_t pos)
   int ib_target_block  = target_block % IND_BLK_CNT;
 
   // TODO problem here
-  buffer_cache_read (disk_inode->dib.indirect_blocks, &ib, 0, BLOCK_SECTOR_SIZE);
+  buffer_cache_read (disk_inode->dib, &ib, 0, BLOCK_SECTOR_SIZE);
   buffer_cache_read (ib.blocks[dib_target_block], &ib, 0, BLOCK_SECTOR_SIZE);
   return ib.blocks[ib_target_block];
 }
@@ -326,7 +326,7 @@ void deallocate_inode (struct inode* inode)
 
   // free indirect block
   j = sectors < IND_BLK_CNT ? sectors : IND_BLK_CNT;
-  deallocate_inode_indirect(disk->ib.blocks ,j);
+  deallocate_inode_indirect(disk->ib, j);
   sectors -= j;
 
   if(sectors == 0)
@@ -337,7 +337,7 @@ void deallocate_inode (struct inode* inode)
 
   // free double indirect blocks
   j = sectors < (IND_BLK_CNT*IND_BLK_CNT) ? sectors : IND_BLK_CNT*IND_BLK_CNT;
-  deallocate_inode_double_indirect (disk->dib.indirect_blocks, j);
+  deallocate_inode_double_indirect (disk->dib, j);
   sectors -= j;
 
   free(disk);
