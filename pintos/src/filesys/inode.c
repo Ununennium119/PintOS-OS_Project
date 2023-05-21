@@ -383,7 +383,7 @@ inode_open (block_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
-  // buffer_cache_read (inode->sector, &inode->data, BLOCK_SECTOR_SIZE, 0);
+  lock_init (&inode->inode_lock);
   return inode;
 }
 
@@ -457,7 +457,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
 {
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
-  uint8_t *bounce = NULL;
+  lock_acquire (&inode->inode_lock);
 
   while (size > 0)
     {
@@ -483,7 +483,8 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       offset += chunk_size;
       bytes_read += chunk_size;
     }
-  free (bounce);
+
+  lock_release (&inode->inode_lock);
 
   return bytes_read;
 }
@@ -499,10 +500,29 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 {
   const uint8_t *buffer = buffer_;
   off_t bytes_written = 0;
-  uint8_t *bounce = NULL;
 
   if (inode->deny_write_cnt)
     return 0;
+
+
+  lock_acquire (&inode->inode_lock);
+  /* extend file if needed */
+  if (byte_to_sector (inode, offset + size - 1) == (size_t) - 1)
+    {
+      struct inode_disk* idisk = get_inode_disk (inode);
+
+      if (!allocate_inode (idisk, offset + size))
+        {
+          free (idisk);
+          return 0;
+        }
+
+        idisk->length = offset + size;
+        buffer_cache_write (inode_get_inumber (inode), (void *) idisk, BLOCK_SECTOR_SIZE, 0);
+        free (idisk);
+    }
+
+
 
   while (size > 0)
     {
@@ -528,8 +548,8 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       offset += chunk_size;
       bytes_written += chunk_size;
     }
-  free (bounce);
 
+  lock_release (&inode->inode_lock);
   return bytes_written;
 }
 
