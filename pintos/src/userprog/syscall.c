@@ -416,3 +416,30 @@ practice_syscall (struct intr_frame *f, int i)
 {
   f->eax = i + 1;
 }
+
+
+
+/* Task 3 syscalls skeletons */
+void
+chdir_syscall ()
+{
+  // TODO: implement this shit
+}
+
+void
+mkdir_syscall ()
+{
+  // TODO: implement this shit
+}
+
+void
+readdir_syscall ()
+{
+  // TODO: implement this shit
+}
+
+void 
+isdir_syscall ()
+{
+  // TODO: implement this shit
+}
