@@ -68,8 +68,18 @@ filesys_create (const char *name, off_t initial_size)
 struct file *
 filesys_open (const char *name)
 {
+
+  
   struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
+  
+  //TODO: add relative address support
+
+  // so the thing is first i want to get the 
+  // indode the get cwd from that inode then
+  // move on the tree to find that address
+
+
 
   if (dir != NULL)
     dir_lookup (dir, name, &inode);

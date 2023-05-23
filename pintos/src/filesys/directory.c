@@ -5,6 +5,7 @@
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "threads/thread.h"
 
 /* A directory. */
 struct dir
@@ -233,4 +234,94 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
         }
     }
   return false;
+}
+
+struct dir *
+dir_open_by_path (const char *dir_path)
+{
+  // get current thread
+  struct thread *curr_thread = thread_current ();
+
+  // check if path is absolute
+  struct dir* cwd; 
+  if (dir_path[0] == '/' || curr_thread->cwd == NULL)
+    {
+      cwd = dir_open_root ();
+    }
+  else 
+    {
+      cwd = dir_reopen(curr_thread->cwd); 
+    }
+
+  // move from root or node
+  char path_iterable[strlen(dir_path) + 1]; 
+  strcpy(path_iterable, dir_path);
+
+  char *token, *save_ptr; 
+  token = strtok_r (dir_path, "/", &save_ptr);
+  struct inode *next_node;
+  while (token != NULL)
+  {
+    // check if token(dir) is available in cwd
+    if (!dir_lookup (cwd, token, &next_node))
+      {
+        dir_close (cwd);
+        return NULL;
+      }
+    else
+      {
+        // move forward
+        struct dir* next_dir = dir_open (next_node);
+        if (next_dir == NULL) return NULL; 
+
+        // close the parent node
+        dir_close (cwd);
+
+        // set new cwd
+        cwd = next_dir;
+
+        token = strtok_r (NULL, '/', &save_ptr);
+      }
+  }
+
+  
+  /* Return the last found inode if it is not removed */
+  if (!inode_is_removed (dir_get_inode (cwd)))
+    return cwd;
+
+  dir_close (cwd);
+  return NULL;  
+}
+
+
+/* Extract directory path*/
+static void
+extract_dir (const char *path, char *dir_address, char *file_name)
+{
+  size_t path_len = strlen(path); 
+
+  for (int i = path_len - 1; i >= 0; i--){
+    if (i == '/')
+    {
+      memcpy(dir_address, path + i, i + 1);
+      dir_address[i + 1] = '\0';
+      break;
+    }
+  }
+}
+
+/* Extract file path*/
+static void
+extract_file (const char *path, char *file_name)
+{
+  size_t path_len = strlen(path);
+
+  for (int i = path_len - 1; i >= 0; i--){
+    if (path[i] == '/')
+    {
+      memcpy(file_name, path + i + 1, path_len - i - 1);
+      file_name[path_len - i - 1] = '\0';
+      break;
+    }
+  }
 }
