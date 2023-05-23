@@ -181,24 +181,26 @@ allocate_inode (struct inode_disk* in_disk_inode, off_t length)
   size_t direct_block_count, indirect_block_count, double_indirect_block_count;
   size_t sectors_count = bytes_to_sectors (length);
 
-  direct_block_count = (sectors_count < DIRECT_BLK_CNT) ? sectors_count: DIRECT_BLK_CNT;
-  indirect_block_count = (sectors_count < IND_BLK_CNT) ? sectors_count: IND_BLK_CNT;
-  double_indirect_block_count = (sectors_count < DBL_IND_BLK_CNT * IND_BLK_CNT) ? sectors_count: DBL_IND_BLK_CNT;
 
+  direct_block_count = (sectors_count < DIRECT_BLK_CNT) ? sectors_count: DIRECT_BLK_CNT;
   if (!allocate_direct_inode(in_disk_inode, direct_block_count))
     return false;
   sectors_count -= direct_block_count;
-  if (!sectors_count)
+  indirect_block_count = (sectors_count < IND_BLK_CNT) ? sectors_count: IND_BLK_CNT;
+
+  if (sectors_count == 0)
     return true;
   if (!allocate_indirect_inode (&in_disk_inode->ib, indirect_block_count))
     return false;
   sectors_count -= indirect_block_count;
-  if (!sectors_count)
+  double_indirect_block_count = (sectors_count < DBL_IND_BLK_CNT * IND_BLK_CNT) ? sectors_count: DBL_IND_BLK_CNT * IND_BLK_CNT;
+
+  if (sectors_count == 0)
     return true;
   if (!allocate_double_indirect_inode (&in_disk_inode->dib, double_indirect_block_count))
     return false;
   sectors_count -= double_indirect_block_count;
-  if (!sectors_count)
+  if (sectors_count == 0)
     return true;
 
   return false;
