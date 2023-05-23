@@ -457,7 +457,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
 {
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
-  lock_acquire (&inode->inode_lock);
+  // lock_acquire (&inode->inode_lock);
 
   while (size > 0)
     {
@@ -484,7 +484,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       bytes_read += chunk_size;
     }
 
-  lock_release (&inode->inode_lock);
+  // lock_release (&inode->inode_lock);
 
   return bytes_read;
 }
@@ -583,3 +583,4 @@ inode_length (const struct inode *inode)
   free(disk_inode);
   return length;
 }
+
