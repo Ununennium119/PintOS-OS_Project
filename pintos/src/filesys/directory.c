@@ -327,7 +327,7 @@ dir_open_by_path (const char *dir_path)
       cwd = dir_open_root ();
     }
   else 
-    {
+    { 
       cwd = dir_reopen(curr_thread->cwd); 
     }
 
@@ -349,11 +349,13 @@ dir_open_by_path (const char *dir_path)
     else
       {
         // move forward
-        struct dir* next_dir = dir_open (next_node);
-        if (next_dir == NULL) return NULL; 
+        struct dir *next_dir = dir_open (next_node);
 
         // close the parent node
         dir_close (cwd);
+
+        if (next_dir == NULL) return NULL; 
+
 
         // set new cwd
         cwd = next_dir;
@@ -365,7 +367,7 @@ dir_open_by_path (const char *dir_path)
   
   /* if the inode with cwd is not removed then return cwd */ 
   struct inode *cwd_inode = cwd->inode;
-  if (inode_is_removed(cwd_inode)) return cwd;
+  if (!inode_is_removed(cwd_inode)) return cwd;
 
   dir_close (cwd);
   return NULL;  
