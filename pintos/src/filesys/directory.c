@@ -373,7 +373,7 @@ dir_open_by_path (const char *dir_path)
 
 
 /* Extract directory path*/
-static void
+void
 extract_dir (const char *path, char *dir_address, char *file_name)
 {
   size_t path_len = strlen(path); 
