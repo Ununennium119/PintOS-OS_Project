@@ -448,14 +448,12 @@ practice_syscall (struct intr_frame *f, int i)
   f->eax = i + 1;
 }
 
-<<<<<<< HEAD
 
 
 /* Task 3 syscalls skeletons */
 void
 chdir_syscall (struct intr_frame *f, char *name)
 {
-  // printf("heloooooooooooooooooo\n");
   IS_VALID (!is_address_valid(name), f);
 
   struct dir *dir = dir_open_by_path (name);
@@ -465,7 +463,6 @@ chdir_syscall (struct intr_frame *f, char *name)
       dir_close (cur_thread -> cwd);
       cur_thread->cwd = dir;
       f->eax = true;
-      // printf("successfull chdir\n");
     }
   else
     {
@@ -504,7 +501,7 @@ int inumber_syscall(struct intr_frame *f, int fd)
     f->eax = inode_get_inumber (file_get_inode (file_));
     
 }
-=======
+
 void
 buffer_cache_hit_syscall (struct intr_frame *f)
 {
@@ -528,4 +525,4 @@ buffer_cache_disk_write_syscall (struct intr_frame *f)
 {
   f->eax = get_disk_write_count ();
 }
->>>>>>> e2751f3e9019ae775b0ab2ba995a518f5fd5be61
+
