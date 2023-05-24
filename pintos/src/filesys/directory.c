@@ -27,7 +27,35 @@ struct dir_entry
 bool
 dir_create (block_sector_t sector, size_t entry_cnt)
 {
-  return inode_create (sector, entry_cnt * sizeof (struct dir_entry));
+  bool is_created =  inode_create (sector, entry_cnt * sizeof (struct dir_entry), true);
+  if (!is_created)
+    {
+      return false;
+    }
+  else
+    {
+      // init the first entry (use for traversing)
+      struct dir_entry e;
+      e.inode_sector = sector;
+      e.in_use = false;
+
+      // open created dir and add the entry to it
+      struct dir *dir;
+      dir = dir_open (inode_open (sector));
+      off_t bytes_written = inode_write_at (dir_get_inode (dir), &e, sizeof (e), 0);
+      if (bytes_written == sizeof (e))
+        {
+          dir_close (dir);
+          return true;
+        }
+      else 
+        {
+          dir_close (dir);
+          return false;
+        }
+
+    }
+
 }
 
 /* Opens and returns the directory for the given INODE, of which
@@ -125,12 +153,28 @@ dir_lookup (const struct dir *dir, const char *name,
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
-  if (lookup (dir, name, &e, NULL))
-    *inode = inode_open (e.inode_sector);
-  else
-    *inode = NULL;
+  // special case ".."
+  if (strcmp (name, "..") == 0)
+    {
+      // reach the parent inode
+      inode_read_at (dir->inode, &e, sizeof e, 0);
+      return inode_open (e.inode_sector) != NULL; 
+    }
 
-  return *inode != NULL;
+  // special case "."
+  if (strcmp (name, ".") == 0)
+    {
+      // simply reopen the current
+      return inode_reopen (e.inode_sector) != NULL;
+    }
+
+  if (lookup (dir, name, &e, NULL))
+    {
+      // look up the direcetory for the file
+      return inode_open (e.inode_sector) != NULL;
+    }
+    
+    return false;
 }
 
 /* Adds a file named NAME to DIR, which must not already contain a
