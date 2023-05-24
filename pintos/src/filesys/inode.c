@@ -586,3 +586,9 @@ inode_length (const struct inode *inode)
   return length;
 }
 
+bool 
+inode_is_removed (const struct inode * inode)
+{
+  return inode->removed; 
+}
+

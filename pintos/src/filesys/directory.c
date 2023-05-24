@@ -243,7 +243,7 @@ dir_open_by_path (const char *dir_path)
   struct thread *curr_thread = thread_current ();
 
   // check if path is absolute
-  struct dir* cwd; 
+  struct dir *cwd; 
   if (dir_path[0] == '/' || curr_thread->cwd == NULL)
     {
       cwd = dir_open_root ();
@@ -255,7 +255,7 @@ dir_open_by_path (const char *dir_path)
 
   // move from root or node
   char path_iterable[strlen(dir_path) + 1]; 
-  strcpy(path_iterable, dir_path);
+  memcpy(path_iterable, dir_path, strlen(dir_path) + 1);
 
   char *token, *save_ptr; 
   token = strtok_r (dir_path, "/", &save_ptr);
@@ -285,9 +285,9 @@ dir_open_by_path (const char *dir_path)
   }
 
   
-  /* Return the last found inode if it is not removed */
-  if (!inode_is_removed (dir_get_inode (cwd)))
-    return cwd;
+  /* if the inode with cwd is not removed then return cwd */ 
+  struct inode *cwd_inode = cwd->inode;
+  if (inode_is_removed(cwd_inode)) return cwd;
 
   dir_close (cwd);
   return NULL;  
