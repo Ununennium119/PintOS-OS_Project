@@ -266,7 +266,7 @@ create_syscall (struct intr_frame *f, const char *file, unsigned initial_size)
   else
     {
       // lock_acquire (&filesys_lock);
-      f->eax = filesys_create (file, initial_size);
+      f->eax = filesys_create (file, initial_size, false);
       // lock_release (&filesys_lock);
     }
 }

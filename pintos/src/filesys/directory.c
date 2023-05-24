@@ -389,7 +389,7 @@ extract_dir (const char *path, char *dir_address, char *file_name)
 }
 
 /* Extract file path*/
-static void
+void
 extract_file (const char *path, char *file_name)
 {
   size_t path_len = strlen(path);
