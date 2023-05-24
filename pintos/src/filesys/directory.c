@@ -220,10 +220,11 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector, bool is
 
       // add new entry
       struct dir *c_dir = dir_open (inode_open (inode_sector));
+      if (c_dir == NULL) return false;
       off_t bytes_written = inode_write_at(c_dir->inode, &n_entry, sizeof n_entry, 0);
       dir_close (c_dir);
 
-      if (bytes_written == sizeof n_entry)
+      if (bytes_written != sizeof n_entry)
         {
           return false;
         }      
