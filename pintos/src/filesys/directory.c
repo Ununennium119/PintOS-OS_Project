@@ -385,9 +385,11 @@ extract_dir (const char *path, char *dir_address, char *file_name)
     {
       memcpy(dir_address, path + i, i + 1);
       dir_address[i + 1] = '\0';
-      break;
+      return;
     }
   }
+
+  dir_address[0] = '\0';
 }
 
 /* Extract file path*/
@@ -401,9 +403,11 @@ extract_file (const char *path, char *file_name)
     {
       memcpy(file_name, path + i + 1, path_len - i - 1);
       file_name[path_len - i - 1] = '\0';
-      break;
+      return;
     }
   }
+
+  memcpy(file_name, path, NAME_MAX); 
 }
 
 /* Check whether the directory is empty */
