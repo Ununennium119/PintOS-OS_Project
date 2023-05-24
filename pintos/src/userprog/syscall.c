@@ -427,9 +427,24 @@ practice_syscall (struct intr_frame *f, int i)
 
 /* Task 3 syscalls skeletons */
 void
-chdir_syscall ()
+chdir_syscall (struct intr_frame *f, char *name)
 {
-  // TODO: implement this shit
+  IS_VALID (!is_address_valid(name), f);
+
+  struct dir *dir = dir_open_by_path (name);
+  if (dir)
+    {
+      struct thread *cur_thread = thread_current ();
+      dir_close (cur_thread -> cwd);
+      cur_thread->cwd = dir;
+      f->eax = true;
+    }
+  else
+    {
+      dir_close (dir);
+      f->eax = false;
+    }
+
 }
 
 void
