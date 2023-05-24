@@ -587,8 +587,16 @@ inode_length (const struct inode *inode)
 }
 
 bool 
-inode_is_removed (const struct inode * inode)
+inode_is_removed (const struct inode *inode)
 {
   return inode->removed; 
+}
+
+bool 
+inode_is_dir (const struct inode *inode)
+{
+  // get mapped disk inode
+  struct inode_disk *inode_disk = get_inode_disk (inode);
+  return inode_disk->is_dir; 
 }
 

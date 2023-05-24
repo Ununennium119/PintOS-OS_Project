@@ -269,6 +269,15 @@ dir_remove (struct dir *dir, const char *name)
   if (inode == NULL)
     goto done;
 
+  /* if inode belongs to a dir, check if it is empty or not*/
+  if (inode_is_dir (inode))
+    {
+        struct dir *_dir = dir_open (inode);
+        bool is_empty = dir_is_empty (_dir);
+        dir_close (_dir);
+        if (!is_empty) goto done;
+    }
+
   /* Erase directory entry. */
   e.in_use = false;
   if (inode_write_at (dir->inode, &e, sizeof e, ofs) != sizeof e)
@@ -391,4 +400,18 @@ extract_file (const char *path, char *file_name)
       break;
     }
   }
+}
+
+/* Check whether the directory is empty */
+static bool
+dir_is_empty (struct dir *dir)
+{
+  struct dir_entry e;
+  off_t ofs;
+
+  for (ofs = sizeof e; inode_read_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
+       ofs += sizeof e)
+      if (e.in_use)
+        return false;
+  return true;
 }
