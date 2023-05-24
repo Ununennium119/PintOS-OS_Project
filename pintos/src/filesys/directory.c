@@ -161,22 +161,23 @@ dir_lookup (const struct dir *dir, const char *name,
     {
       // reach the parent inode
       inode_read_at (dir->inode, &e, sizeof e, 0);
-      return inode_open (e.inode_sector) != NULL; 
+      return (*inode = inode_open (e.inode_sector)) != NULL; 
     }
 
   // special case "."
   if (strcmp (name, ".") == 0)
     {
       // simply reopen the current
-      return inode_reopen (dir->inode) != NULL;
+      return (*inode = inode_reopen (dir->inode)) != NULL;
     }
 
   if (lookup (dir, name, &e, NULL))
     {
       // look up the direcetory for the file
-      return inode_open (e.inode_sector) != NULL;
+      return (*inode = inode_open (e.inode_sector)) != NULL;
     }
     
+    *inode = NULL;
     return false;
 }
 
@@ -357,7 +358,7 @@ dir_open_by_path (const char *dir_path)
         // set new cwd
         cwd = next_dir;
 
-        token = strtok_r (NULL, '/', &save_ptr);
+        token = strtok_r (NULL, "/", &save_ptr);
       }
   }
 
