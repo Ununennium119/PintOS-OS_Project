@@ -117,10 +117,12 @@ syscall_handler (struct intr_frame *f)
       case SYS_CHDIR:
         break;
       case SYS_ISDIR:
+        isdir_syscall (f, args[0]);
         break;
       case SYS_READDIR:
         break;        
       case SYS_INUMBER:
+        inumber_syscall (f, args[0]);
         break;
       default:
         exit_syscall (f, -1);
@@ -286,9 +288,7 @@ remove_syscall (struct intr_frame *f, const char *file)
 {
   IS_VALID (!is_string_valid(file), f);
   
-  // lock_acquire (&filesys_lock);
   f->eax = filesys_remove (file);
-  // lock_release (&filesys_lock);
 }
 
 void
@@ -296,9 +296,7 @@ open_syscall (struct intr_frame *f, const char *file)
 {
   IS_VALID (!is_string_valid (file), f);
 
-  // lock_acquire (&filesys_lock);
   struct file* file_ = filesys_open (file);
-  // lock_release (&filesys_lock);
   if (file_)
     {
       int fd = create_fd (file_);
@@ -339,9 +337,7 @@ read_syscall (struct intr_frame *f, int fd, void *buffer, unsigned size)
       struct file *file = get_file_by_fd (fd);
       if (file)
         {
-          // lock_acquire (&filesys_lock);
           read_bytes_conut = file_read (file, buffer, size);
-          // lock_release (&filesys_lock);
         }
       else
         f->eax = -1;
@@ -365,9 +361,7 @@ write_syscall (struct intr_frame *f, int fd, void *buffer, unsigned size)
       struct file *file = get_file_by_fd (fd);
         if (file)
           {
-            // lock_acquire (&filesys_lock);
             write_bytes_count = file_write (file, buffer, size);
-            // lock_release (&filesys_lock);
           }
         else 
           f->eax = -1;
@@ -381,9 +375,7 @@ seek_syscall (struct intr_frame *f, int fd, unsigned position)
   struct file* file = get_file_by_fd (fd);
   if (file)
     {
-      // lock_acquire (&filesys_lock);
       file_seek (file, position);
-      // lock_release (&filesys_lock);
     }
   else
     f->eax = -1;
@@ -395,9 +387,7 @@ tell_syscall (struct intr_frame *f, int fd)
   struct file* file = get_file_by_fd (fd);
   if (file)
     {
-      // lock_acquire (&filesys_lock);
       f->eax = file_tell (file);
-      // lock_release (&filesys_lock);
     }
   else
     f->eax = -1;
@@ -415,10 +405,8 @@ close_syscall (struct intr_frame *f, int fd)
           f->eax = -1;
         else  
           {
-            // lock_acquire (&filesys_lock);
             file_close (file);
             if (file_desc->dir) dir_close (file_desc->dir);
-            // lock_release (&filesys_lock);
 
             f->eax = 0;
           }
