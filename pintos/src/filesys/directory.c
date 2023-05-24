@@ -177,14 +177,14 @@ dir_lookup (const struct dir *dir, const char *name,
     return false;
 }
 
-/* Adds a file named NAME to DIR, which must not already contain a
+/* Adds a file or dir named NAME to DIR, which must not already contain a
    file by that name.  The file's inode is in sector
    INODE_SECTOR.
    Returns true if successful, false on failure.
    Fails if NAME is invalid (i.e. too long) or a disk or memory
    error occurs. */
 bool
-dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
+dir_add (struct dir *dir, const char *name, block_sector_t inode_sector, bool is_dir)
 {
   struct dir_entry e;
   off_t ofs;
@@ -199,8 +199,33 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 
   /* Check that NAME is not in use. */
   if (lookup (dir, name, NULL, NULL))
-    goto done;
+    return false;
 
+
+  /* create a new entry for a dir*/
+  if (is_dir)
+    {
+      struct dir_entry n_entry;
+      n_entry.in_use = false;
+
+      // get sector of the parent inode
+      block_sector_t p_sector = inode_get_inumber (dir_get_inode (dir));
+      n_entry.inode_sector = p_sector; 
+      
+      strlcpy(n_entry.name, "..", sizeof n_entry.name);
+
+      struct dir *c_dir = dir_open (inode_open (inode_sector));
+
+      // add new entry
+      struct dir *c_dir = dir_open (inode_open (inode_sector));
+      off_t bytes_written = inode_write_at(c_dir->inode, &n_entry, sizeof n_entry, 0);
+      dir_close (c_dir);
+
+      if (bytes_written == sizeof n_entry)
+        {
+          return false;
+        }      
+    }
   /* Set OFS to offset of free slot.
      If there are no free slots, then it will be set to the
      current end-of-file.
@@ -218,8 +243,6 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   strlcpy (e.name, name, sizeof e.name);
   e.inode_sector = inode_sector;
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
-
- done:
   return success;
 }
 
