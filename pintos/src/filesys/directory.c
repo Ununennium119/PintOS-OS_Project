@@ -315,62 +315,56 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
 }
 
 struct dir *
-dir_open_by_path (const char *dir_path)
+dir_open_by_path (const char *path)
 {
-  // get current thread
   struct thread *curr_thread = thread_current ();
 
-  // check if path is absolute
-  struct dir *cwd; 
-  if (dir_path[0] == '/' || curr_thread->cwd == NULL)
+  /* Absolute path */
+  struct dir *curr_dir;
+  if (path[0] == '/' || curr_thread->cwd == NULL)
+    curr_dir = dir_open_root ();
+  /* Relative path */
+  else
+    curr_dir = dir_reopen (curr_thread->cwd);
+
+  // safe const copy of path, to tokenize
+  size_t cpl = strlen (path) + 1;
+  char const_path[cpl];
+  memcpy (const_path, path, cpl);
+
+  // iterating throgh path
+  char *dir_token, *save_ptr;
+  for (dir_token = strtok_r (const_path, "/", &save_ptr); dir_token != NULL;
+       dir_token = strtok_r (NULL, "/", &save_ptr))
     {
-      cwd = dir_open_root ();
-    }
-  else 
-    { 
-      cwd = dir_reopen(curr_thread->cwd); 
-    }
 
-  // move from root or node
-  char path_iterable[strlen(dir_path) + 1]; 
-  memcpy(path_iterable, dir_path, strlen(dir_path) + 1);
+      if (strlen (dir_token) > NAME_MAX)
+        break;
 
-  char *token, *save_ptr; 
-  token = strtok_r (path_iterable, "/", &save_ptr);
-  struct inode *next_node;
-  while (token != NULL)
-  {
-    // check if token(dir) is available in cwd
-    if (!dir_lookup (cwd, token, &next_node))
-      {
-        dir_close (cwd);
+      /* Lookup directory from current path */
+      struct inode *next_inode;
+      if (!dir_lookup (curr_dir, dir_token, &next_inode))
+        {
+          dir_close (curr_dir);
+          return NULL;
+        }
+
+      /* Open directory from inode received above */
+      struct dir *next_dir = dir_open (next_inode);
+
+      /* Close current directory and assign next directory as current */
+      dir_close (curr_dir);
+      if (!next_dir)
         return NULL;
-      }
-    else
-      {
-        // move forward
-        struct dir *next_dir = dir_open (next_node);
+      curr_dir = next_dir;
+    }
 
-        // close the parent node
-        dir_close (cwd);
+  /* Return the last found inode if it is not removed */
+  if (!inode_is_removed (dir_get_inode (curr_dir)))
+    return curr_dir;
 
-        if (next_dir == NULL) return NULL; 
-
-
-        // set new cwd
-        cwd = next_dir;
-
-        token = strtok_r (NULL, "/", &save_ptr);
-      }
-  }
-
-  
-  /* if the inode with cwd is not removed then return cwd */ 
-  struct inode *cwd_inode = cwd->inode;
-  if (!inode_is_removed(cwd_inode)) return cwd;
-
-  dir_close (cwd);
-  return NULL;  
+  dir_close (curr_dir);
+  return NULL;
 }
 
 
@@ -407,7 +401,8 @@ extract_file (const char *path, char *file_name)
     }
   }
 
-  memcpy(file_name, path, NAME_MAX); 
+  memcpy(file_name, path, NAME_MAX);
+  file_name[strlen(path)]='\0'; 
 }
 
 /* Check whether the directory is empty */

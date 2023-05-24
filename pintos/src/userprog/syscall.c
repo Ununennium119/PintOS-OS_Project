@@ -12,6 +12,8 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "threads/synch.h"
+#include "filesys/directory.h"
+#include "filesys/inode.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -110,6 +112,7 @@ syscall_handler (struct intr_frame *f)
         practice_syscall (f, args[1]);
         break;
       case SYS_MKDIR:
+        mkdir_syscall (f, args[0]);
         break;
       case SYS_CHDIR:
         break;
@@ -175,7 +178,14 @@ get_file_by_fd (int fd)
     return NULL;
   return t->fd[fd]->file;
 }
-
+struct file_descriptor*
+get_file_descriptor_by_fd (int fd)
+{
+    struct thread *t = thread_current ();
+  if (is_fd_invalid(fd, t))
+    return NULL;
+  return t->fd[fd];
+}
 /* Get file size of a file, given its file descriptor */
 int
 get_filesize (int fd)
@@ -292,6 +302,12 @@ open_syscall (struct intr_frame *f, const char *file)
   if (file_)
     {
       int fd = create_fd (file_);
+      struct inode* inode = file_get_inode(file_);
+      if (inode && inode_is_dir((inode)))
+        {
+          struct file_descriptor* file_desc = get_file_descriptor_by_fd(fd);
+          file_desc->dir = dir_open (inode_reopen (inode));
+        }
       f->eax = fd;
     }
   else
@@ -393,6 +409,7 @@ close_syscall (struct intr_frame *f, int fd)
     struct file *file = get_file_by_fd (fd);
     if (file)
       {
+        struct file_descriptor* file_desc = get_file_descriptor_by_fd (fd);
         int result = free_fd (fd);
         if (result == -1)
           f->eax = -1;
@@ -400,6 +417,7 @@ close_syscall (struct intr_frame *f, int fd)
           {
             // lock_acquire (&filesys_lock);
             file_close (file);
+            if (file_desc->dir) dir_close (file_desc->dir);
             // lock_release (&filesys_lock);
 
             f->eax = 0;
@@ -427,9 +445,11 @@ chdir_syscall ()
 }
 
 void
-mkdir_syscall ()
+mkdir_syscall (struct intr_frame *f, char *name)
 {
-  // TODO: implement this shit
+  IS_VALID (!is_address_valid(name), f);
+
+  f->eax = filesys_create (name, 0, true);
 }
 
 void
@@ -439,7 +459,16 @@ readdir_syscall ()
 }
 
 void 
-isdir_syscall ()
+isdir_syscall (struct intr_frame *f, int fd)
 {
-  // TODO: implement this shit
+    struct file* file_ = get_file_by_fd(fd);
+    f->eax = inode_is_dir (file_get_inode (file_));
+
+}
+
+int inumber_syscall(struct intr_frame *f, int fd)
+{
+    struct file* file_ = get_file_by_fd(fd);
+    f->eax = inode_get_inumber (file_get_inode (file_));
+    
 }

@@ -89,8 +89,9 @@ filesys_open (const char *name)
   struct dir *dir = dir_open_by_path (directory);
   struct inode *inode = NULL;
   
-if (dir == NULL)
-  return NULL;
+  //printf("dir: %s fname:%s\n",directory, filename);
+  if (dir == NULL)
+    return NULL;
 
   if (strlen(filename) == 0)
     inode = dir_get_inode (dir);

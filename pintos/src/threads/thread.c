@@ -600,6 +600,7 @@ init_file_descriptors (struct thread* t)
       t->fd[i] = fd;
       t->fd[i]->file = NULL;
       t->fd[i]->file_id = i;
+      t->fd[i]->dir = NULL;
     }
 
   for (int i = 2; i < MAX_FILE_DESCRIPTOR; i++)
