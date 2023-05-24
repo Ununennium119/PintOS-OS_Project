@@ -51,6 +51,8 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f)
 {
+
+  
   if (f == NULL)
     exit_syscall (f, -1);
   
@@ -112,17 +114,18 @@ syscall_handler (struct intr_frame *f)
         practice_syscall (f, args[1]);
         break;
       case SYS_MKDIR:
-        mkdir_syscall (f, args[0]);
+        mkdir_syscall (f, args[1]);
         break;
       case SYS_CHDIR:
+        chdir_syscall(f, args[1]);
         break;
       case SYS_ISDIR:
-        isdir_syscall (f, args[0]);
+        isdir_syscall (f, args[1]);
         break;
       case SYS_READDIR:
         break;        
       case SYS_INUMBER:
-        inumber_syscall (f, args[0]);
+        inumber_syscall (f, args[1]);
         break;
       default:
         exit_syscall (f, -1);
@@ -277,9 +280,7 @@ create_syscall (struct intr_frame *f, const char *file, unsigned initial_size)
     f->eax = false;
   else
     {
-      // lock_acquire (&filesys_lock);
       f->eax = filesys_create (file, initial_size, false);
-      // lock_release (&filesys_lock);
     }
 }
 
@@ -309,7 +310,10 @@ open_syscall (struct intr_frame *f, const char *file)
       f->eax = fd;
     }
   else
-    f->eax = -1;
+    {
+      f->eax = -1;
+      
+    }
 }
 
 void
@@ -361,7 +365,8 @@ write_syscall (struct intr_frame *f, int fd, void *buffer, unsigned size)
       struct file *file = get_file_by_fd (fd);
         if (file)
           {
-            write_bytes_count = file_write (file, buffer, size);
+            struct inode* inode = file_get_inode (file);
+            write_bytes_count = inode_is_dir (inode) ? -1 : file_write (file, buffer, size);
           }
         else 
           f->eax = -1;
@@ -429,6 +434,7 @@ practice_syscall (struct intr_frame *f, int i)
 void
 chdir_syscall (struct intr_frame *f, char *name)
 {
+  // printf("heloooooooooooooooooo\n");
   IS_VALID (!is_address_valid(name), f);
 
   struct dir *dir = dir_open_by_path (name);
@@ -438,18 +444,20 @@ chdir_syscall (struct intr_frame *f, char *name)
       dir_close (cur_thread -> cwd);
       cur_thread->cwd = dir;
       f->eax = true;
+      // printf("successfull chdir\n");
     }
   else
     {
       dir_close (dir);
       f->eax = false;
+
     }
 
 }
 
 void
 mkdir_syscall (struct intr_frame *f, char *name)
-{
+{ 
   IS_VALID (!is_address_valid(name), f);
 
   f->eax = filesys_create (name, 0, true);

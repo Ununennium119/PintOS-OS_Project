@@ -55,9 +55,8 @@ filesys_create (const char *name, off_t initial_size, bool is_dir)
 
   extract_dir (name, directory, filename);
   extract_file (name, filename);
-
   struct dir *dir = dir_open_by_path (directory);
-  //struct dit *dir = dir_open_root ();
+  
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size, is_dir)
@@ -89,7 +88,6 @@ filesys_open (const char *name)
   struct dir *dir = dir_open_by_path (directory);
   struct inode *inode = NULL;
   
-  //printf("dir: %s fname:%s\n",directory, filename);
   if (dir == NULL)
     return NULL;
 
