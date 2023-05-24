@@ -197,3 +197,27 @@ sbrk (intptr_t increment UNUSED)
   /* Homework 5, Part B: YOUR CODE HERE */
   return NULL;
 }
+
+uint32_t
+get_buffer_hit (void)
+{
+  return syscall0 (SYS_BUFFER_HIT);
+}
+
+uint32_t
+get_buffer_miss (void)
+{
+  return syscall0 (SYS_BUFFER_MISS);
+}
+
+uint32_t
+get_buffer_disk_write (void)
+{
+  return syscall0 (SYS_BUFFER_DISK_WRITE);
+}
+
+uint32_t
+buffer_cache_invalidate (void)
+{
+  return syscall0 (SYS_BUFFER_INVALIDATE);
+}

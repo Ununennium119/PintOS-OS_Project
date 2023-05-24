@@ -35,6 +35,10 @@ void seek (int fd, unsigned position);
 unsigned tell (int fd);
 void close (int fd);
 int practice (int i);
+uint32_t get_buffer_hit (void);
+uint32_t get_buffer_miss (void);
+uint32_t get_buffer_disk_write (void);
+uint32_t buffer_cache_invalidate (void);
 
 /* Project 3 and optionally project 4. */
 mapid_t mmap (int fd, void *addr);

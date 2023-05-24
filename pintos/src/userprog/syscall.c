@@ -11,12 +11,14 @@
 #include "devices/input.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include "filesys/buffer-cache.h"
 #include "threads/synch.h"
 
 static void syscall_handler (struct intr_frame *);
 
-bool is_string_valid (const char *string);
 bool is_address_valid (const void *address);
+bool is_string_valid (const char *string);
+bool is_fd_invalid(int fd, struct thread *t);
 struct file * get_file_by_fd (int fd);
 int get_filesize (int fd);
 
@@ -36,6 +38,10 @@ void seek_syscall (struct intr_frame *f, int fd, unsigned position);
 void tell_syscall (struct intr_frame *f, int fd);
 void close_syscall (struct intr_frame *f, int fd);
 void practice_syscall (struct intr_frame *f, int i);
+void buffer_cache_hit_syscall (struct intr_frame *f);
+void buffer_cache_miss_syscall (struct intr_frame *f);
+void buffer_cache_invalidate_syscall (struct intr_frame *f);
+void buffer_cache_disk_write_syscall (struct intr_frame *f);
 struct lock filesys_lock;
 
 void
@@ -108,6 +114,18 @@ syscall_handler (struct intr_frame *f)
         break;
       case SYS_PRACTICE:
         practice_syscall (f, args[1]);
+        break;
+      case SYS_BUFFER_HIT:
+        buffer_cache_hit_syscall (f);
+        break;
+      case SYS_BUFFER_MISS:
+        buffer_cache_miss_syscall (f);
+        break;
+      case SYS_BUFFER_INVALIDATE:
+        buffer_cache_invalidate_syscall (f);
+        break;
+      case SYS_BUFFER_DISK_WRITE:
+        buffer_cache_disk_write_syscall (f);
         break;
       case SYS_MKDIR:
         break;
@@ -253,6 +271,7 @@ wait_syscall (struct intr_frame *f, tid_t tid)
 {
     f->eax = process_wait (tid);
 }
+
 
 /* File Operation Syscalls */
 
@@ -409,10 +428,35 @@ close_syscall (struct intr_frame *f, int fd)
       f->eax = -1;
 }
 
+
 /* Other Syscalls */
 
 void
 practice_syscall (struct intr_frame *f, int i)
 {
   f->eax = i + 1;
+}
+
+void
+buffer_cache_hit_syscall (struct intr_frame *f)
+{
+  f->eax = get_hit_count ();
+}
+
+void
+buffer_cache_miss_syscall (struct intr_frame *f)
+{
+  f->eax = get_miss_count ();
+}
+
+void
+buffer_cache_invalidate_syscall (struct intr_frame *f UNUSED)
+{
+  buffer_cache_invalidate ();
+}
+
+void
+buffer_cache_disk_write_syscall (struct intr_frame *f)
+{
+  f->eax = get_disk_write_count ();
 }
