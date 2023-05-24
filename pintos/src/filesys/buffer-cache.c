@@ -7,6 +7,10 @@
 #include "devices/block.h"
 #include "threads/malloc.h"
 
+uint32_t hit_count;
+uint32_t miss_count;
+uint32_t disk_write_count;
+
 buffer_cache_block_t *check_buffer_cache (block_sector_t sector);
 buffer_cache_block_t *get_new_block (void);
 
@@ -69,6 +73,7 @@ get_new_block (void)
   if (block->valid && block->dirty)
     {
       block_write (fs_device, block->sector, block->data);
+      disk_write_count++;
       block->dirty = false;
     }
 
@@ -95,6 +100,10 @@ buffer_cache_init (void)
       list_push_front (&buffer_cache_list, &block->elem);
     }
   lock_release (&buffer_cache_lock);
+
+  hit_count = 0;
+  miss_count = 0;
+  disk_write_count = 0;
 }
 
 /* Reads from the sector */
@@ -103,12 +112,20 @@ void buffer_cache_read (block_sector_t sector, void *buffer, off_t size, off_t b
   buffer_cache_block_t *block = check_buffer_cache (sector);
   if (!block)
     {
+      /* Increment miss count */
+      miss_count++;
+
       /* Get a new buffer cache block */
       block = get_new_block ();
       block->sector = sector;
       block_read (fs_device, sector, block->data);
       block->valid = true;
       block->dirty = false;
+    }
+  else
+    {
+      /* Increment hit count */
+      hit_count++;
     }
 
   /* Copy data to buffer */
@@ -125,6 +142,9 @@ buffer_cache_write (block_sector_t sector, const void *buffer, off_t size, off_t
   buffer_cache_block_t *block = check_buffer_cache (sector);
   if (!block)
     {
+      /* Increment miss count */
+      miss_count++;
+
       /* Get a new buffer cache block */
       block = get_new_block ();
       block->sector = sector;
@@ -132,6 +152,11 @@ buffer_cache_write (block_sector_t sector, const void *buffer, off_t size, off_t
         block_read (fs_device, sector, block->data);
       block->valid = true;
       block->dirty = false;
+    }
+  else
+    {
+      /* Increment hit count */
+      hit_count++;
     }
 
   /* Copy data to cache buffer */
@@ -159,6 +184,7 @@ buffer_cache_flush (void)
       if (block->valid && block->dirty)
         {
           block_write (fs_device, block->sector, block->data);
+          disk_write_count++;
           block->dirty = false;
         }
       lock_release (&block->block_lock);
@@ -166,4 +192,50 @@ buffer_cache_flush (void)
 
   /* Release buffer cache lock */
   lock_release (&buffer_cache_lock);
+}
+
+/* Clears buffer cache */
+void
+buffer_cache_invalidate (void)
+{
+  /* Get buffer cache lock */
+  lock_acquire (&buffer_cache_lock);
+
+  /* Write all dirty blocks' data to disk and mark all block as invalid */
+  for (struct list_elem *e = list_begin (&buffer_cache_list);
+       e != list_end (&buffer_cache_list);
+       e = list_next (e))
+    {
+      buffer_cache_block_t *block = list_entry (e, buffer_cache_block_t, elem);
+      lock_acquire (&block->block_lock);
+      if (block->valid && block->dirty)
+        {
+          block_write (fs_device, block->sector, block->data);
+          disk_write_count++;
+          block->dirty = false;
+        }
+      block->valid = false;
+      lock_release (&block->block_lock);
+    }
+
+  /* Release buffer cache lock */
+  lock_release (&buffer_cache_lock);
+}
+
+uint32_t
+get_hit_count (void)
+{
+  return hit_count;
+}
+
+uint32_t
+get_miss_count (void)
+{
+  return miss_count;
+}
+
+uint32_t
+get_disk_write_count (void)
+{
+  return disk_write_count;
 }

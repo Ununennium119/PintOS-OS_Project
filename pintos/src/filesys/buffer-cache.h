@@ -27,5 +27,10 @@ void buffer_cache_init (void);
 void buffer_cache_read (block_sector_t sector, void *buffer, off_t size, off_t block_ofs);
 void buffer_cache_write (block_sector_t sector, const void *buffer, off_t size, off_t block_ofs);
 void buffer_cache_flush (void);
+void buffer_cache_invalidate (void);
+
+uint32_t get_hit_count (void);
+uint32_t get_miss_count (void);
+uint32_t get_disk_write_count (void);
 
 #endif  /* filesys/buffer-cache.h */
