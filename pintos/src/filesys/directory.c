@@ -335,7 +335,7 @@ dir_open_by_path (const char *dir_path)
   memcpy(path_iterable, dir_path, strlen(dir_path) + 1);
 
   char *token, *save_ptr; 
-  token = strtok_r (dir_path, "/", &save_ptr);
+  token = strtok_r (path_iterable, "/", &save_ptr);
   struct inode *next_node;
   while (token != NULL)
   {
