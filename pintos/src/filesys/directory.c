@@ -168,7 +168,7 @@ dir_lookup (const struct dir *dir, const char *name,
   if (strcmp (name, ".") == 0)
     {
       // simply reopen the current
-      return inode_reopen (e.inode_sector) != NULL;
+      return inode_reopen (dir->inode) != NULL;
     }
 
   if (lookup (dir, name, &e, NULL))
