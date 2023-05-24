@@ -135,7 +135,6 @@ inode_init (void)
 {
   list_init (&open_inodes);
   // TO check
-  buffer_cache_init ();
 }
 
 /* Initializes an inode with LENGTH bytes of data and
