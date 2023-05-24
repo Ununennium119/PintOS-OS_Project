@@ -7,6 +7,9 @@
 #include "threads/malloc.h"
 #include "threads/thread.h"
 
+
+static bool dir_is_empty (struct dir *dir);
+
 /* A directory. */
 struct dir
   {
@@ -214,8 +217,6 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector, bool is
       
       strlcpy(n_entry.name, "..", sizeof n_entry.name);
 
-      struct dir *c_dir = dir_open (inode_open (inode_sector));
-
       // add new entry
       struct dir *c_dir = dir_open (inode_open (inode_sector));
       off_t bytes_written = inode_write_at(c_dir->inode, &n_entry, sizeof n_entry, 0);
@@ -272,9 +273,9 @@ dir_remove (struct dir *dir, const char *name)
   /* if inode belongs to a dir, check if it is empty or not*/
   if (inode_is_dir (inode))
     {
-        struct dir *_dir = dir_open (inode);
-        bool is_empty = dir_is_empty (_dir);
-        dir_close (_dir);
+        struct dir *d = dir_open (inode);
+        bool is_empty = dir_is_empty (d);
+        dir_close (d);
         if (!is_empty) goto done;
     }
 
